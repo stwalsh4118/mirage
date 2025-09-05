@@ -19,7 +19,7 @@ func (c *Client) CreateEnvironment(ctx context.Context, in CreateEnvironmentInpu
 	mutation := `mutation CreateEnv($projectId: ID!, $name: String!) {\n  createEnvironment(input: { projectId: $projectId, name: $name }) {\n    environment { id }\n  }\n}`
 	vars := map[string]any{
 		"projectId": in.ProjectID,
-		"name":       in.Name,
+		"name":      in.Name,
 	}
 	var resp struct {
 		CreateEnvironment struct {
