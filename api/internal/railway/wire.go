@@ -1,12 +1,11 @@
 package railway
 
 import (
-	"net/http"
-
 	"github.com/stwalsh4118/mirageapi/internal/config"
 )
 
 // NewFromConfig builds a Railway client using application configuration.
 func NewFromConfig(cfg config.AppConfig) *Client {
-	return NewClient("", cfg.RailwayAPIToken, &http.Client{})
+	// Use the default 30s timeout defined in NewClient.
+	return NewClient("", cfg.RailwayAPIToken, nil)
 }
