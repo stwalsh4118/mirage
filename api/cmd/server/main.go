@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"os"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
 	"github.com/stwalsh4118/mirageapi/internal/config"
+	"github.com/stwalsh4118/mirageapi/internal/jobs"
 	"github.com/stwalsh4118/mirageapi/internal/logging"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/server"
@@ -28,6 +31,17 @@ func main() {
 	}
 
 	rw := railway.NewFromConfig(cfg)
+
+	// Start status poller (Phase 1)
+	pollInterval := time.Duration(cfg.PollIntervalSeconds) * time.Second
+	_ = jobs.StartStatusPoller(
+		context.Background(),
+		db,
+		rw,
+		pollInterval,
+		cfg.PollJitterFraction,
+		nil, // use default log publisher
+	)
 
 	engine := server.NewHTTPServer(cfg, db, rw)
 
