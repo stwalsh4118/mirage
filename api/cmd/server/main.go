@@ -1,11 +1,14 @@
 package main
 
 import (
+	"os"
+
 	"github.com/rs/zerolog/log"
 
 	"github.com/stwalsh4118/mirageapi/internal/config"
 	"github.com/stwalsh4118/mirageapi/internal/logging"
 	"github.com/stwalsh4118/mirageapi/internal/server"
+	"github.com/stwalsh4118/mirageapi/internal/store"
 )
 
 func main() {
@@ -15,6 +18,14 @@ func main() {
 	}
 
 	logging.Setup(cfg.Environment)
+
+	// Initialize DB (SQLite MVP) using env var SQLITE_PATH if provided
+	sqlitePath := os.Getenv("SQLITE_PATH")
+	db, err := store.Open(sqlitePath)
+	if err != nil {
+		log.Fatal().Err(err).Str("path", sqlitePath).Msg("failed to init database")
+	}
+	_ = db // Placeholder: will be passed to services/controllers in later tasks
 
 	engine := server.NewHTTPServer(cfg)
 
