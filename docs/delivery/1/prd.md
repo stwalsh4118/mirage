@@ -18,6 +18,7 @@ Teams struggle to provision consistent, isolated environments quickly—especial
 - Backend (Go, Gin): HTTP API using Gin framework; Environment Controller managing lifecycle and state; persists in SQLite/Postgres; secure storage of Railway API token(s); webhook intake for deployment status.
 - Railway Integration: GraphQL API client with retry/backoff; operations to create/delete environments and services; status polling fallback.
 - Frontend (Next.js for routing/UI only): Dashboard grid and creation wizard; no Next.js API routes used; real-time updates via WebSocket or polling from the Go API.
+- Auth: Clerk as the identity provider. Users are created in Clerk; a webhook from Clerk triggers user synchronization into Mirage's database.
 - Data Model: Environment, Service, Template entities as described, persisted with creation timestamps and optional TTL.
 
 ## UX/UI Considerations
@@ -33,6 +34,7 @@ Teams struggle to provision consistent, isolated environments quickly—especial
 ## Dependencies
 - Railway GraphQL API credentials and network access.
 - SQLite or Railway Postgres for persistence.
+- Clerk account and webhook secret configuration.
 
 ## Open Questions
 - Auth and RBAC scope in MVP (local admin vs external auth provider).
