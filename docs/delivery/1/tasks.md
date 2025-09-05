@@ -8,7 +8,7 @@ This document lists all tasks associated with PBI 1.
 
 | Task ID | Name | Status | Description |
 | :------ | :--------------------------------------- | :------- | :--------------------------------- |
-| 1-1 | [Initialize backend service and API scaffolding](./1-1.md) | Review | Create Go service project, HTTP API skeleton, configs |
+| 1-1 | [Initialize backend service and API scaffolding](./1-1.md) | Done | Create Go service project, HTTP API skeleton, configs |
 | 1-2 | [Implement Railway GraphQL client (create/destroy env)](./1-2.md) | Proposed | Minimal GQL client with retry/backoff |
 | 1-3 | [Design and migrate persistence schema](./1-3.md) | Proposed | DB schema for Environment, Service, Template |
 | 1-4 | [Implement secure token storage and admin API](./1-4.md) | Proposed | Encrypted Railway token storage and admin endpoint |
