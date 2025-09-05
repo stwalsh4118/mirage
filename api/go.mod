@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/gin-gonic/gin v1.10.0
+	github.com/google/uuid v1.6.0
 	github.com/machinebox/graphql v0.2.2
 	github.com/rs/zerolog v1.33.0
 	gorm.io/driver/sqlite v1.6.0

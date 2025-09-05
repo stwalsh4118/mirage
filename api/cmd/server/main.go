@@ -7,6 +7,7 @@ import (
 
 	"github.com/stwalsh4118/mirageapi/internal/config"
 	"github.com/stwalsh4118/mirageapi/internal/logging"
+	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/server"
 	"github.com/stwalsh4118/mirageapi/internal/store"
 )
@@ -25,9 +26,10 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Str("path", sqlitePath).Msg("failed to init database")
 	}
-	_ = db // Placeholder: will be passed to services/controllers in later tasks
 
-	engine := server.NewHTTPServer(cfg)
+	rw := railway.NewFromConfig(cfg)
+
+	engine := server.NewHTTPServer(cfg, db, rw)
 
 	port := cfg.HTTPPort
 	if port == "" {
