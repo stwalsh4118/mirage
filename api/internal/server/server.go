@@ -2,7 +2,9 @@ package server
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/stwalsh4118/mirageapi/internal/config"
 	"github.com/stwalsh4118/mirageapi/internal/controller"
@@ -20,6 +22,16 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(logging.GinLogger())
+
+	// CORS for local dev UI
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3002"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	var db *gorm.DB
 	var rw *railway.Client
