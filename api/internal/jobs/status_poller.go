@@ -2,6 +2,7 @@ package jobs
 
 import (
 	"context"
+	"math"
 	"math/rand"
 	"time"
 
@@ -33,17 +34,29 @@ func StartStatusPoller(
 	jitterFraction float64,
 	publisher EnvironmentPublisher,
 ) (stop func()) {
+	// Validate dependencies first
+	if db == nil || rw == nil {
+		log.Error().Msg("status poller not started: nil dependency (db or railway client)")
+		return func() {}
+	}
 	if publisher == nil {
 		publisher = LogPublisher{}
 	}
 
+	// Clamp interval and jitter
+	if interval <= 0 {
+		log.Warn().Dur("provided_interval", interval).Msg("invalid poll interval; using minimum 1s")
+		interval = time.Second
+	}
+	jitter := clampJitter(jitterFraction)
+
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
-		log.Info().Dur("interval", interval).Float64("jitter_fraction", jitterFraction).Msg("status poller started")
+		log.Info().Dur("interval", interval).Float64("jitter_fraction", jitter).Msg("status poller started")
 		defer log.Info().Msg("status poller stopped")
 		for {
 			// Sleep for interval with jitter
-			d := addJitter(interval, jitterFraction)
+			d := addJitter(interval, jitter)
 			select {
 			case <-time.After(d):
 				if err := pollOnce(ctx, db, rw, publisher); err != nil {
@@ -57,14 +70,14 @@ func StartStatusPoller(
 	return cancel
 }
 
-func addJitter(base time.Duration, fraction float64) time.Duration {
-	if fraction <= 0 {
-		return base
+func clampJitter(fraction float64) float64 {
+	if math.IsNaN(fraction) || fraction < 0 {
+		return 0
 	}
-	j := base.Seconds() * fraction
-	// random value in [-j/2, +j/2]
-	delta := (rand.Float64() - 0.5) * j
-	return time.Duration((base.Seconds() + delta) * float64(time.Second))
+	if fraction > 1 {
+		return 1
+	}
+	return fraction
 }
 
 func pollOnce(ctx context.Context, db *gorm.DB, rw *railway.Client, publisher EnvironmentPublisher) error {
@@ -116,4 +129,28 @@ func normalizeStatus(s string) string {
 	default:
 		return s
 	}
+}
+
+func addJitter(base time.Duration, fraction float64) time.Duration {
+	// Clamp fraction to [0,1]
+	if fraction < 0 || math.IsNaN(fraction) {
+		fraction = 0
+	}
+	if fraction > 1 {
+		fraction = 1
+	}
+	if base <= 0 {
+		base = 0
+	}
+	if fraction == 0 || base == 0 {
+		return base
+	}
+	j := base.Seconds() * fraction
+	// random value in [-j/2, +j/2]
+	delta := (rand.Float64() - 0.5) * j
+	seconds := base.Seconds() + delta
+	if seconds < 0 {
+		seconds = 0
+	}
+	return time.Duration(seconds * float64(time.Second))
 }

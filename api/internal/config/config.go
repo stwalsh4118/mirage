@@ -3,6 +3,8 @@ package config
 import (
 	"os"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -33,6 +35,23 @@ func LoadFromEnv() (AppConfig, error) {
 		PollIntervalSeconds: getEnvInt("POLL_INTERVAL_SECONDS", DefaultPollIntervalSeconds),
 		PollJitterFraction:  getEnvFloat("POLL_JITTER_FRACTION", DefaultPollJitterFraction),
 	}
+
+	// Clamp and validate poller configuration
+	if cfg.PollIntervalSeconds <= 0 {
+		old := cfg.PollIntervalSeconds
+		cfg.PollIntervalSeconds = DefaultPollIntervalSeconds
+		log.Warn().Int("old", old).Int("new", cfg.PollIntervalSeconds).Msg("invalid PollIntervalSeconds; using default")
+	}
+	if cfg.PollJitterFraction < 0 || !(cfg.PollJitterFraction >= 0) { // also guards NaN
+		old := cfg.PollJitterFraction
+		cfg.PollJitterFraction = 0
+		log.Warn().Float64("old", old).Float64("new", cfg.PollJitterFraction).Msg("invalid PollJitterFraction; clamped to 0")
+	} else if cfg.PollJitterFraction >= 1 {
+		old := cfg.PollJitterFraction
+		cfg.PollJitterFraction = 0.999
+		log.Warn().Float64("old", old).Float64("new", cfg.PollJitterFraction).Msg("PollJitterFraction too high; clamped below 1")
+	}
+
 	return cfg, nil
 }
 
