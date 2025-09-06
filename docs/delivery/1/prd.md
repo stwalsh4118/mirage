@@ -22,10 +22,16 @@ Teams struggle to provision consistent, isolated environments quickly—especial
 - Data Model: Environment, Service, Template entities as described, persisted with creation timestamps and optional TTL.
 
 ## UX/UI Considerations
-- Dashboard Grid: Card-based layout with color-coded environment types (prod red, staging yellow, dev green, ephemeral blue). Indicators: spinning up, healthy, degraded, spinning down.
+- Dashboard Grid: Card-based layout. For the full layout, interactions, and component breakdown, see [Dashboard Layout Spec](../../design/dashboard-layout.md).
 - Environment Creation Wizard: 3 steps—Source Selection (repo/branch, service detection), Environment Configuration (template, TTL, resource sliders, env var editor with inheritance preview), Deployment Strategy (sequential/parallel, health checks, rollback triggers).
 - Monorepo Service Map: Interactive dependency graph, selection/deselection, visual diff since last deployment, service health indicators.
 - Environment Details: Service grid with logs, resource usage, public URLs, recent commits, and environment-wide actions (promote, clone, schedule destruction).
+
+### Mirage Theme System
+
+For the complete Mirage theme specification (palette, surfaces, motion, shadcn component guidelines, and implementation notes), see the centralized design document:
+
+[Mirage Theme System](../../design/mirage-theme.md)
 
 ## Acceptance Criteria
 - MVP: Ability to create and destroy a single environment via the UI using Railway; near real-time status visible in dashboard; support dev and prod templates; state persists across reloads; tokens stored securely.
