@@ -1,0 +1,26 @@
+# SQLite database files
+*.db
+*.sqlite
+*.sqlite3
+
+
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+.env.test.local
+.env.test.development
+.env.test.production
+.env.test.staging
+ 
+# Air tmp binaries
+tmp/
+
+# OS files
+.DS_Store
+
+# IDE/project
+.vscode/
+.idea/
