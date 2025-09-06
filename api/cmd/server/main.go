@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 
 	"github.com/stwalsh4118/mirageapi/internal/config"
@@ -16,6 +17,10 @@ import (
 )
 
 func main() {
+	// Load .env if present (dev convenience)
+	if err := godotenv.Load(); err == nil {
+		log.Info().Msg("loaded .env file")
+	}
 	cfg, err := config.LoadFromEnv()
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to load config")
