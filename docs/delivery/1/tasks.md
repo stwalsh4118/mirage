@@ -15,6 +15,6 @@ This document lists all tasks associated with PBI 1.
 | 1-5 | [Build Environment Controller MVP](./1-5.md) | Done | Lifecycle orchestration for create/destroy + state |
 | 1-6 | [Implement status reconciliation polling](./1-6.md) | Done | Poll Railway, update state, emit events |
 | 1-7 | [Initialize frontend (Next.js) and base layout](./1-7.md) | Done | Set up Next.js app and base UI shell |
-| 1-8 | [Implement Dashboard grid and environment cards](./1-8.md) | Proposed | List environments, status, quick actions |
+| 1-8 | [Implement Dashboard grid and environment cards](./1-8.md) | InProgress | List environments, status, quick actions |
 | 1-9 | [Implement Environment Creation Wizard (dev/prod templates)](./1-9.md) | Proposed | 3-step wizard with minimal inputs |
 | 1-10 | [E2E wiring and near-real-time polling](./1-10.md) | Proposed | Connect UI to backend; 5s polling updates |
