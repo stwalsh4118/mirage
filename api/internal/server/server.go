@@ -33,6 +33,14 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// Inject Railway project ID into request context for downstream controller usage
+	r.Use(func(c *gin.Context) {
+		if cfg.RailwayProjectID != "" {
+			c.Set("railway_project_id", cfg.RailwayProjectID)
+		}
+		c.Next()
+	})
+
 	var db *gorm.DB
 	var rw *railway.Client
 	for _, d := range deps {

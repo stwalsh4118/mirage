@@ -16,10 +16,12 @@ const (
 
 // AppConfig holds runtime configuration for the API service.
 type AppConfig struct {
-	Environment     string
-	HTTPPort        string
-	DatabaseURL     string
-	RailwayAPIToken string
+	Environment      string
+	HTTPPort         string
+	DatabaseURL      string
+	RailwayAPIToken  string
+	RailwayProjectID string
+	RailwayEndpoint  string
 	// Status poller settings
 	PollIntervalSeconds int
 	PollJitterFraction  float64
@@ -32,6 +34,8 @@ func LoadFromEnv() (AppConfig, error) {
 		HTTPPort:            getEnv("HTTP_PORT", DefaultHTTPPort),
 		DatabaseURL:         firstNonEmpty(os.Getenv("DATABASE_URL"), os.Getenv("DB_URL")),
 		RailwayAPIToken:     os.Getenv("RAILWAY_API_TOKEN"),
+		RailwayProjectID:    os.Getenv("RAILWAY_PROJECT_ID"),
+		RailwayEndpoint:     os.Getenv("RAILWAY_GRAPHQL_ENDPOINT"),
 		PollIntervalSeconds: getEnvInt("POLL_INTERVAL_SECONDS", DefaultPollIntervalSeconds),
 		PollJitterFraction:  getEnvFloat("POLL_JITTER_FRACTION", DefaultPollJitterFraction),
 	}

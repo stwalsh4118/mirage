@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DefaultEndpoint = "https://backboard.railway.app/graphql/v2"
+	DefaultEndpoint = "https://backboard.railway.com/graphql/v2"
 )
 
 // Client wraps GraphQL calls to Railway with retries and auth.
