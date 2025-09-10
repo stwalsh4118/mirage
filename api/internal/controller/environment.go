@@ -27,16 +27,34 @@ type createEnvRequest struct {
 }
 
 type envResponse struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Type   string `json:"type"`
-	Status string `json:"status"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"createdAt,omitempty"`
 }
 
 func (c *EnvironmentController) RegisterRoutes(r *gin.Engine) {
+	r.GET("/environments", c.ListEnvironments)
 	r.POST("/environments", c.CreateEnvironment)
 	r.GET("/environments/:id", c.GetEnvironment)
 	r.DELETE("/environments/:id", c.DestroyEnvironment)
+	// railway proxy helpers
+	r.GET("/railway/projects", c.ListRailwayProjects)
+	r.GET("/railway/project/:id", c.GetRailwayProject)
+}
+
+func (c *EnvironmentController) ListEnvironments(ctx *gin.Context) {
+	var envs []store.Environment
+	if err := c.DB.Find(&envs).Error; err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list environments"})
+		return
+	}
+	out := make([]envResponse, 0, len(envs))
+	for _, e := range envs {
+		out = append(out, envResponse{ID: e.ID, Name: e.Name, Type: string(e.Type), Status: normalizeStatusForUI(e.Status), CreatedAt: e.CreatedAt.UTC().Format(time.RFC3339)})
+	}
+	ctx.JSON(http.StatusOK, out)
 }
 
 func (c *EnvironmentController) CreateEnvironment(ctx *gin.Context) {
@@ -64,9 +82,11 @@ func (c *EnvironmentController) CreateEnvironment(ctx *gin.Context) {
 	}
 
 	if c.Railway != nil {
-		// Call Railway create env (placeholder project id TBD)
-		go func(e store.Environment) {
-			res, err := c.Railway.CreateEnvironment(ctx, railway.CreateEnvironmentInput{ProjectID: "PROJECT_ID_TODO", Name: e.Name})
+		// Read project id from context (set by server)
+		projectID, _ := ctx.Get("railway_project_id")
+		pid, _ := projectID.(string)
+		go func(e store.Environment, projectID string) {
+			res, err := c.Railway.CreateEnvironment(ctx, railway.CreateEnvironmentInput{ProjectID: projectID, Name: e.Name})
 			if err != nil {
 				log.Error().Err(err).Str("env_id", e.ID).Msg("railway create env failed")
 				_ = c.DB.Model(&e).Update("Status", "error").Error
@@ -74,10 +94,10 @@ func (c *EnvironmentController) CreateEnvironment(ctx *gin.Context) {
 			}
 			updates := map[string]any{"Status": "ready", "RailwayEnvironmentID": res.EnvironmentID}
 			_ = c.DB.Model(&e).Updates(updates).Error
-		}(env)
+		}(env, pid)
 	}
 
-	ctx.JSON(http.StatusAccepted, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: env.Status})
+	ctx.JSON(http.StatusAccepted, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: env.Status, CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
 }
 
 func (c *EnvironmentController) GetEnvironment(ctx *gin.Context) {
@@ -87,7 +107,7 @@ func (c *EnvironmentController) GetEnvironment(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	ctx.JSON(http.StatusOK, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: env.Status})
+	ctx.JSON(http.StatusOK, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: normalizeStatusForUI(env.Status), CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
 }
 
 func (c *EnvironmentController) DestroyEnvironment(ctx *gin.Context) {
@@ -109,4 +129,22 @@ func (c *EnvironmentController) DestroyEnvironment(ctx *gin.Context) {
 		return
 	}
 	ctx.Status(http.StatusNoContent)
+}
+
+func normalizeStatusForUI(s string) string {
+	switch s {
+	case "ready":
+		return "active"
+	case "creating", "provisioning", "deploying":
+		return "creating"
+	case "destroying":
+		return "destroying"
+	case "error", "failed", "degraded":
+		return "error"
+	default:
+		if s == "" {
+			return "unknown"
+		}
+		return s
+	}
 }
