@@ -14,7 +14,7 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | <a id="6"></a>6 | Developer | Add Real-time Status Updates for environments and services. [View Details](./6/prd.md) | Agreed | WebSocket or polling for status; Service-level health indicators; Clear error states and retry guidance |
 | <a id="7"></a>7 | Platform admin | Add Persistence, Security, and RBAC foundations. [View Details](./7/prd.md) | Agreed | SQLite/Postgres persistence; Encrypted token storage; Basic roles; Audit logging scaffold; Resource attribution metadata (Mirage-created) and Railway association IDs |
 | <a id="8"></a>8 | Tech lead | Add PR Integration for ephemeral envs lifecycle tied to PRs. [View Details](./8/prd.md) | Agreed | Webhook intake; Comment env URL on PR; Auto-destroy on close/merge; TTL enforcement |
-| <a id="9"></a>9 | Developer | As a user, I want to browse my Railway projects and, in a project view, see its environments and services so I can navigate and understand what exists before creating anything in Mirage. | Proposed | Dashboard lists Railway projects with counts; Project page shows environments and services (read-only); Uses Railway API with ~30s polling; No write/import actions |
+| <a id="9"></a>9 | Developer | As a user, I want to browse my Railway projects and, in a project view, see its environments and services so I can navigate and understand what exists before creating anything in Mirage. [View Details](./9/prd.md) | Agreed | Dashboard lists Railway projects with counts; Project page shows environments and services (read-only); Uses Railway API with ~30s polling; No write/import actions |
 
 ## History
 
@@ -38,3 +38,4 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | 20250905-120400 | 8 | propose_for_backlog | PBI 8 moved from Proposed to Agreed; detail doc created | ai-agent |
 | 20250911-120000 | 9 | create_pbi | Created PBI 9 (Railway Project Browsing & Details) | ai-agent |
 | 20250911-120010 | 7 | significant_update | Updated CoS to include resource attribution metadata and Railway association IDs | ai-agent |
+| 20250911-120100 | 9 | propose_for_backlog | PBI 9 moved from Proposed to Agreed; detail doc created | ai-agent |
