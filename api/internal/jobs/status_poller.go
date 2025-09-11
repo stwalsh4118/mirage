@@ -8,6 +8,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
+	"github.com/stwalsh4118/mirageapi/internal/status"
 	"github.com/stwalsh4118/mirageapi/internal/store"
 	"gorm.io/gorm"
 )
@@ -107,29 +108,18 @@ func pollOnce(ctx context.Context, db *gorm.DB, rw *railway.Client, publisher En
 // reconcileEnvironmentStatus compares local and remote status strings and returns whether
 // a change should be applied and the normalized target status.
 func reconcileEnvironmentStatus(local string, remote string) (bool, string) {
-	// For MVP, treat remote as source of truth and normalize a few known states.
-	n := normalizeStatus(remote)
+	// For MVP, treat remote as source of truth and normalize remote to UI canonical set.
+	n := status.NormalizeRemoteToUI(remote)
 	if n == "" {
 		return false, local
 	}
-	if n == local {
+	if n == status.NormalizeLocalToUI(local) {
 		return false, local
 	}
 	return true, n
 }
 
-func normalizeStatus(s string) string {
-	switch s {
-	case "creating", "provisioning", "deploying":
-		return "creating"
-	case "ready", "healthy", "running":
-		return "ready"
-	case "error", "failed", "degraded":
-		return "error"
-	default:
-		return s
-	}
-}
+// normalization moved to internal/status
 
 func addJitter(base time.Duration, fraction float64) time.Duration {
 	// Clamp fraction to [0,1]
