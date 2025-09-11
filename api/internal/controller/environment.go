@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
+	"github.com/stwalsh4118/mirageapi/internal/status"
 	"github.com/stwalsh4118/mirageapi/internal/store"
 	"gorm.io/gorm"
 )
@@ -52,7 +53,7 @@ func (c *EnvironmentController) ListEnvironments(ctx *gin.Context) {
 	}
 	out := make([]envResponse, 0, len(envs))
 	for _, e := range envs {
-		out = append(out, envResponse{ID: e.ID, Name: e.Name, Type: string(e.Type), Status: normalizeStatusForUI(e.Status), CreatedAt: e.CreatedAt.UTC().Format(time.RFC3339)})
+		out = append(out, envResponse{ID: e.ID, Name: e.Name, Type: string(e.Type), Status: status.NormalizeLocalToUI(e.Status), CreatedAt: e.CreatedAt.UTC().Format(time.RFC3339)})
 	}
 	ctx.JSON(http.StatusOK, out)
 }
@@ -72,7 +73,7 @@ func (c *EnvironmentController) CreateEnvironment(ctx *gin.Context) {
 		SourceRepo:   req.SourceRepo,
 		SourceBranch: req.SourceBranch,
 		SourceCommit: req.SourceCommit,
-		Status:       "creating",
+		Status:       status.StatusCreating,
 		TTLSeconds:   req.TTLSeconds,
 		CreatedAt:    time.Now(),
 	}
@@ -89,15 +90,15 @@ func (c *EnvironmentController) CreateEnvironment(ctx *gin.Context) {
 			res, err := c.Railway.CreateEnvironment(ctx, railway.CreateEnvironmentInput{ProjectID: projectID, Name: e.Name})
 			if err != nil {
 				log.Error().Err(err).Str("env_id", e.ID).Msg("railway create env failed")
-				_ = c.DB.Model(&e).Update("Status", "error").Error
+				_ = c.DB.Model(&e).Update("Status", status.StatusError).Error
 				return
 			}
-			updates := map[string]any{"Status": "ready", "RailwayEnvironmentID": res.EnvironmentID}
+			updates := map[string]any{"Status": status.StatusActive, "RailwayEnvironmentID": res.EnvironmentID}
 			_ = c.DB.Model(&e).Updates(updates).Error
 		}(env, pid)
 	}
 
-	ctx.JSON(http.StatusAccepted, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: normalizeStatusForUI(env.Status), CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
+	ctx.JSON(http.StatusAccepted, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: status.NormalizeLocalToUI(env.Status), CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
 }
 
 func (c *EnvironmentController) GetEnvironment(ctx *gin.Context) {
@@ -107,7 +108,7 @@ func (c *EnvironmentController) GetEnvironment(ctx *gin.Context) {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
-	ctx.JSON(http.StatusOK, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: normalizeStatusForUI(env.Status), CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
+	ctx.JSON(http.StatusOK, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: status.NormalizeLocalToUI(env.Status), CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
 }
 
 func (c *EnvironmentController) DestroyEnvironment(ctx *gin.Context) {
@@ -131,20 +132,4 @@ func (c *EnvironmentController) DestroyEnvironment(ctx *gin.Context) {
 	ctx.Status(http.StatusNoContent)
 }
 
-func normalizeStatusForUI(s string) string {
-	switch s {
-	case "ready":
-		return "active"
-	case "creating", "provisioning", "deploying":
-		return "creating"
-	case "destroying":
-		return "destroying"
-	case "error", "failed", "degraded":
-		return "error"
-	default:
-		if s == "" {
-			return "unknown"
-		}
-		return s
-	}
-}
+// status normalization moved to internal/status
