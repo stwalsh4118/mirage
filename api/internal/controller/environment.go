@@ -97,7 +97,7 @@ func (c *EnvironmentController) CreateEnvironment(ctx *gin.Context) {
 		}(env, pid)
 	}
 
-	ctx.JSON(http.StatusAccepted, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: env.Status, CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
+	ctx.JSON(http.StatusAccepted, envResponse{ID: env.ID, Name: env.Name, Type: string(env.Type), Status: normalizeStatusForUI(env.Status), CreatedAt: env.CreatedAt.UTC().Format(time.RFC3339)})
 }
 
 func (c *EnvironmentController) GetEnvironment(ctx *gin.Context) {

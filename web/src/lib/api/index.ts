@@ -1,11 +1,13 @@
 export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(process.env.NEXT_PUBLIC_API_BASE_URL ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${path}` : path, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
-  });
+  const url = process.env.NEXT_PUBLIC_API_BASE_URL ? `${process.env.NEXT_PUBLIC_API_BASE_URL}${path}` : path;
+  const merged = init ? { ...init } : {};
+  const hdrs = new Headers(init?.headers as any);
+  const hasBody = merged.body != null;
+  if (hasBody && !hdrs.has('Content-Type')) {
+    hdrs.set('Content-Type', 'application/json');
+  }
+  merged.headers = hdrs;
+  const res = await fetch(url, merged);
   if (res.status === 204) {
     return { } as T;
   }

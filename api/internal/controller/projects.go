@@ -54,16 +54,7 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 					continue
 				}
 			}
-			pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name}
-			if pd.Services == nil {
-				pd.Services = []ProjectDTO{}
-			}
-			if pd.Plugins == nil {
-				pd.Plugins = []ProjectDTO{}
-			}
-			if pd.Environments == nil {
-				pd.Environments = []ProjectDTO{}
-			}
+			pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Plugins: []ProjectDTO{}, Environments: []ProjectDTO{}}
 			for _, s := range p.Services {
 				pd.Services = append(pd.Services, ProjectDTO{ID: s.ID, Name: s.Name})
 			}

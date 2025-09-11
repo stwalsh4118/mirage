@@ -151,7 +151,10 @@ func (c *Client) ListProjects(ctx context.Context, first int) ([]Project, error)
 			} `json:"edges"`
 		} `json:"projects"`
 	}
-	_ = c.execute(ctx, gqlListProjectsRoot, map[string]any{"first": first}, &outRoot)
+	if err := c.execute(ctx, gqlListProjectsRoot, map[string]any{"first": first}, &outRoot); err != nil {
+		log.Error().Err(err).Str("query", "ListProjects_root").Msg("railway root.projects query failed")
+		return nil, err
+	}
 	rootCount := 0
 	rootNames := make([]string, 0)
 	for _, e := range outRoot.Projects.Edges {
@@ -208,15 +211,21 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 		pd := acc[p.ID]
 		pd.ID = p.ID
 		pd.Name = p.Name
-		pd.Services = []ProjectItem{}
+		if pd.Services == nil {
+			pd.Services = []ProjectItem{}
+		}
 		for _, se := range p.Services.Edges {
 			pd.Services = append(pd.Services, se.Node)
 		}
-		pd.Plugins = []ProjectItem{}
+		if pd.Plugins == nil {
+			pd.Plugins = []ProjectItem{}
+		}
 		for _, pe := range p.Plugins.Edges {
 			pd.Plugins = append(pd.Plugins, pe.Node)
 		}
-		pd.Environments = []ProjectItem{}
+		if pd.Environments == nil {
+			pd.Environments = []ProjectItem{}
+		}
 		for _, ee := range p.Environments.Edges {
 			pd.Environments = append(pd.Environments, ee.Node)
 		}
@@ -251,7 +260,10 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 			} `json:"edges"`
 		} `json:"projects"`
 	}
-	_ = c.execute(ctx, gqlProjectsDetailsRoot, map[string]any{"first": first}, &outRoot)
+	if err := c.execute(ctx, gqlProjectsDetailsRoot, map[string]any{"first": first}, &outRoot); err != nil {
+		log.Error().Err(err).Str("query", "ProjectsDetails_root").Msg("railway root.projects details query failed")
+		return nil, err
+	}
 	rootNames := make([]string, 0)
 	for _, e := range outRoot.Projects.Edges {
 		merge(e.Node)
