@@ -14,6 +14,7 @@ import (
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/server"
 	"github.com/stwalsh4118/mirageapi/internal/store"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -28,11 +29,21 @@ func main() {
 
 	logging.Setup(cfg.Environment)
 
-	// Initialize DB (SQLite MVP) using env var SQLITE_PATH if provided
-	sqlitePath := os.Getenv("SQLITE_PATH")
-	db, err := store.Open(sqlitePath)
-	if err != nil {
-		log.Fatal().Err(err).Str("path", sqlitePath).Msg("failed to init database")
+	// Initialize DB: prefer DATABASE_URL if provided, else fallback to SQLite (SQLITE_PATH or default)
+	var db *gorm.DB
+	if cfg.DatabaseURL != "" {
+		d, derr := store.OpenFromURL(cfg.DatabaseURL)
+		if derr != nil {
+			log.Fatal().Err(derr).Str("database_url", cfg.DatabaseURL).Msg("failed to init database from url")
+		}
+		db = d
+	} else {
+		sqlitePath := os.Getenv("SQLITE_PATH")
+		d, derr := store.Open(sqlitePath)
+		if derr != nil {
+			log.Fatal().Err(derr).Str("path", sqlitePath).Msg("failed to init sqlite database")
+		}
+		db = d
 	}
 
 	rw := railway.NewFromConfig(cfg)
