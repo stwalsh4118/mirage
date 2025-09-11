@@ -8,5 +8,5 @@ This document lists all tasks associated with PBI 9.
 
 | Task ID | Name | Status | Description |
 | :------ | :--------------------------------------- | :------- | :--------------------------------- |
-| 9-1 | [Add Projects grid to dashboard](./9-1.md) | Review | Show Railway projects with counts and link to details |
-| 9-2 | [Create Project details page (envs & services)](./9-2.md) | Proposed | Read-only page showing environments and services for a project |
+| 9-1 | [Add Projects grid to dashboard](./9-1.md) | Done | Show Railway projects with counts and link to details |
+| 9-2 | [Create Project details page (envs & services)](./9-2.md) | Done | Read-only page showing environments and services for a project |
