@@ -18,4 +18,4 @@ This document lists all tasks associated with PBI 1.
 | 1-8 | [Implement Dashboard grid and environment cards](./1-8.md) | InProgress | List environments, status, quick actions |
 | 1-9 | [Implement Environment Creation Wizard (dev/prod templates)](./1-9.md) | Proposed | 3-step wizard with minimal inputs |
 | 1-10 | [E2E wiring and near-real-time polling](./1-10.md) | Proposed | Connect UI to backend; 5s polling updates |
-| 1-11 | [Finalize Railway API integration](./1-11.md) | InProgress | Config, real GQL ops, list endpoint, status norms |
+| 1-11 | [Finalize Railway API integration](./1-11.md) | Done | Config, real GQL ops, list endpoint, status norms |
