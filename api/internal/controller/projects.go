@@ -13,12 +13,18 @@ type ProjectDTO struct {
 	Name string `json:"name"`
 }
 
+type EnvWithServicesDTO struct {
+	ID       string       `json:"id"`
+	Name     string       `json:"name"`
+	Services []ProjectDTO `json:"services"`
+}
+
 type ProjectDetailsDTO struct {
-	ID           string       `json:"id"`
-	Name         string       `json:"name"`
-	Services     []ProjectDTO `json:"services"`
-	Plugins      []ProjectDTO `json:"plugins"`
-	Environments []ProjectDTO `json:"environments"`
+	ID           string               `json:"id"`
+	Name         string               `json:"name"`
+	Services     []ProjectDTO         `json:"services"`
+	Plugins      []ProjectDTO         `json:"plugins"`
+	Environments []EnvWithServicesDTO `json:"environments"`
 }
 
 // ListRailwayProjects returns projects filtered by comma-separated name list (?names=a,b,c)
@@ -54,7 +60,7 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 					continue
 				}
 			}
-			pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Plugins: []ProjectDTO{}, Environments: []ProjectDTO{}}
+			pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Plugins: []ProjectDTO{}, Environments: []EnvWithServicesDTO{}}
 			for _, s := range p.Services {
 				pd.Services = append(pd.Services, ProjectDTO{ID: s.ID, Name: s.Name})
 			}
@@ -62,7 +68,11 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 				pd.Plugins = append(pd.Plugins, ProjectDTO{ID: g.ID, Name: g.Name})
 			}
 			for _, e := range p.Environments {
-				pd.Environments = append(pd.Environments, ProjectDTO{ID: e.ID, Name: e.Name})
+				env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ProjectDTO{}}
+				for _, es := range e.Services {
+					env.Services = append(env.Services, ProjectDTO{ID: es.ID, Name: es.Name})
+				}
+				pd.Environments = append(pd.Environments, env)
 			}
 			out = append(out, pd)
 		}
@@ -106,7 +116,7 @@ func (c *EnvironmentController) GetRailwayProject(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 			return
 		}
-		pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Plugins: []ProjectDTO{}, Environments: []ProjectDTO{}}
+		pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Plugins: []ProjectDTO{}, Environments: []EnvWithServicesDTO{}}
 		for _, s := range p.Services {
 			pd.Services = append(pd.Services, ProjectDTO{ID: s.ID, Name: s.Name})
 		}
@@ -114,7 +124,11 @@ func (c *EnvironmentController) GetRailwayProject(ctx *gin.Context) {
 			pd.Plugins = append(pd.Plugins, ProjectDTO{ID: g.ID, Name: g.Name})
 		}
 		for _, e := range p.Environments {
-			pd.Environments = append(pd.Environments, ProjectDTO{ID: e.ID, Name: e.Name})
+			env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ProjectDTO{}}
+			for _, es := range e.Services {
+				env.Services = append(env.Services, ProjectDTO{ID: es.ID, Name: es.Name})
+			}
+			pd.Environments = append(pd.Environments, env)
 		}
 		ctx.JSON(http.StatusOK, pd)
 		return

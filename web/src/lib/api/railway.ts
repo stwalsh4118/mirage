@@ -2,12 +2,18 @@ import { fetchJSON } from '@/lib/api';
 
 export type RailwayProject = { id: string; name: string };
 export type RailwayProjectItem = { id: string; name: string };
+export type RailwayEnvironmentWithServices = {
+  id: string;
+  name: string;
+  services: RailwayProjectItem[];
+};
+
 export type RailwayProjectDetails = {
   id: string;
   name: string;
   services: RailwayProjectItem[];
   plugins: RailwayProjectItem[];
-  environments: RailwayProjectItem[];
+  environments: RailwayEnvironmentWithServices[];
 };
 
 export function listRailwayProjectsByNames(names: unknown): Promise<RailwayProject[]> {
@@ -35,4 +41,23 @@ export function listRailwayProjectsDetails(names?: unknown): Promise<RailwayProj
     qs.set('names', (names as string[]).join(','));
   }
   return fetchJSON<RailwayProjectDetails[]>(`/railway/projects?${qs.toString()}`);
+}
+
+export type ImportRailwayEnvsRequest = {
+  projectId: string;
+  environmentIds: string[];
+};
+
+export type ImportRailwayEnvsResponse = {
+  imported: number;
+  skipped: number;
+  items: { id: string; name: string; type: string; status: string; createdAt: string }[];
+};
+
+export function importRailwayEnvironments(body: ImportRailwayEnvsRequest): Promise<ImportRailwayEnvsResponse> {
+  return fetchJSON<ImportRailwayEnvsResponse>(`/railway/import/environments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }

@@ -23,8 +23,8 @@ export function ControlsBar() {
       </div>
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="flex flex-col gap-1">
-          <Label htmlFor="filter">Filter environments…</Label>
-          <Input id="filter" placeholder="Filter environments…" className="h-9" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Label htmlFor="filter">Filter projects…</Label>
+          <Input id="filter" placeholder="Filter projects…" className="h-9" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <div className="flex flex-col gap-1">
           <Label>Type</Label>
