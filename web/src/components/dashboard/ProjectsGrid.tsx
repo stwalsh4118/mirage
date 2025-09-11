@@ -44,6 +44,15 @@ export function ProjectsGrid() {
     case "name":
       projects.sort((a, b) => a.name.localeCompare(b.name));
       break;
+    case "services":
+      projects.sort((a, b) => (b.services?.length ?? 0) - (a.services?.length ?? 0));
+      break;
+    case "plugins":
+      projects.sort((a, b) => (b.plugins?.length ?? 0) - (a.plugins?.length ?? 0));
+      break;
+    case "environments":
+      projects.sort((a, b) => (b.environments?.length ?? 0) - (a.environments?.length ?? 0));
+      break;
     case "created":
     case "updated":
     default:

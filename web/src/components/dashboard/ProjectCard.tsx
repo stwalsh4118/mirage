@@ -33,8 +33,8 @@ export function ProjectCard({ project }: { project: RailwayProjectDetails }) {
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between">
-        <Button asChild variant="outline" size="sm" aria-label="Open project details">
-          <Link href={`/dashboard/projects/${project.id}`}>Open</Link>
+        <Button asChild variant="outline" size="sm" aria-label="Open project details" className="bg-transparent">
+          <Link href={`/project/${project.id}`}>Open</Link>
         </Button>
       </CardFooter>
     </Card>

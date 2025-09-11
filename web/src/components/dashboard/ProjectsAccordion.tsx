@@ -5,6 +5,8 @@ import { useRailwayProjectsDetails } from "@/hooks/useRailway";
 import { useDashboardStore } from "@/store/dashboard";
 import type { RailwayProjectDetails } from "@/lib/api/railway";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { RailwayEnvironmentCard } from "./RailwayEnvironmentCard";
 
 function LoadingList() {
@@ -50,6 +52,15 @@ export function ProjectsAccordion() {
   switch (sortBy) {
     case "name":
       projects.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    case "services":
+      projects.sort((a, b) => (b.services?.length ?? 0) - (a.services?.length ?? 0));
+      break;
+    case "plugins":
+      projects.sort((a, b) => (b.plugins?.length ?? 0) - (a.plugins?.length ?? 0));
+      break;
+    case "environments":
+      projects.sort((a, b) => (b.environments?.length ?? 0) - (a.environments?.length ?? 0));
       break;
     case "created":
     case "updated":
@@ -110,6 +121,9 @@ function ProjectAccordionItem({ project }: { project: RailwayProjectDetails }) {
           <div className="rounded-md border px-2 py-1 bg-primary/10 text-primary border-primary/20">services: <span className="font-medium">{services}</span></div>
           <div className="rounded-md border px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20">plugins: <span className="font-medium">{plugins}</span></div>
           <div className="rounded-md border px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/20">envs: <span className="font-medium">{envs}</span></div>
+          <Button asChild variant="outline" size="sm" className="ml-2 bg-transparent" onClick={(e) => e.stopPropagation()}>
+            <Link href={`/project/${project.id}`}>Open</Link>
+          </Button>
           <span className="ml-2 text-muted-foreground transition-transform" style={{ transform: isOpen ? "rotate(180deg)" : undefined }}>▾</span>
         </div>
       </summary>
@@ -120,7 +134,7 @@ function ProjectAccordionItem({ project }: { project: RailwayProjectDetails }) {
           ) : (
             <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {project.environments?.map((e) => (
-                <RailwayEnvironmentCard key={e.id} env={e} />
+                <RailwayEnvironmentCard key={e.id} env={e} href={`/project/${project.id}`} />
               ))}
             </div>
           )}

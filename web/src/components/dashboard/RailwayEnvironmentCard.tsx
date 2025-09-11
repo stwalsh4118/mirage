@@ -1,12 +1,13 @@
 "use client";
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 import type { RailwayEnvironmentWithServices } from "@/lib/api/railway";
 import { Pill } from "./Pill";
 
-export function RailwayEnvironmentCard({ env }: { env: RailwayEnvironmentWithServices }) {
+export function RailwayEnvironmentCard({ env, href }: { env: RailwayEnvironmentWithServices; href?: string }) {
   const serviceCount = env.services?.length ?? 0;
-  return (
+  const content = (
     <Card className="glass grain transition-all duration-200 hover:translate-y-[-1px] hover:scale-[1.01]">
       <CardHeader className="flex flex-row items-start justify-between gap-2">
         <div className="space-y-1">
@@ -38,6 +39,14 @@ export function RailwayEnvironmentCard({ env }: { env: RailwayEnvironmentWithSer
       </CardFooter>
     </Card>
   );
+  if (href) {
+    return (
+      <Link href={href} className="block" aria-label={`Open project for ${env.name}`}>
+        {content}
+      </Link>
+    );
+  }
+  return content;
 }
 
 
