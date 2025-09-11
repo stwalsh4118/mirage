@@ -12,8 +12,9 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | <a id="4"></a>4 | Backend engineer | Build GraphQL API Abstraction over Railway with batching, retries, and webhooks. [View Details](./4/prd.md) | Agreed | High-level lifecycle ops; Batched GQL calls; Exponential backoff; Webhook listener; Error classification and surfacing |
 | <a id="5"></a>5 | Developer | Build Dashboard and Environment Creation Wizard with professional UX. [View Details](./5/prd.md) | Agreed | Card grid with type color-coding; 3-step wizard; Resource sliders/TTL; Quick actions (logs, open URL, destroy) |
 | <a id="6"></a>6 | Developer | Add Real-time Status Updates for environments and services. [View Details](./6/prd.md) | Agreed | WebSocket or polling for status; Service-level health indicators; Clear error states and retry guidance |
-| <a id="7"></a>7 | Platform admin | Add Persistence, Security, and RBAC foundations. [View Details](./7/prd.md) | Agreed | SQLite/Postgres persistence; Encrypted token storage; Basic roles; Audit logging scaffold |
+| <a id="7"></a>7 | Platform admin | Add Persistence, Security, and RBAC foundations. [View Details](./7/prd.md) | Agreed | SQLite/Postgres persistence; Encrypted token storage; Basic roles; Audit logging scaffold; Resource attribution metadata (Mirage-created) and Railway association IDs |
 | <a id="8"></a>8 | Tech lead | Add PR Integration for ephemeral envs lifecycle tied to PRs. [View Details](./8/prd.md) | Agreed | Webhook intake; Comment env URL on PR; Auto-destroy on close/merge; TTL enforcement |
+| <a id="9"></a>9 | Developer | As a user, I want to browse my Railway projects and, in a project view, see its environments and services so I can navigate and understand what exists before creating anything in Mirage. | Proposed | Dashboard lists Railway projects with counts; Project page shows environments and services (read-only); Uses Railway API with ~30s polling; No write/import actions |
 
 ## History
 
@@ -35,3 +36,5 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | 20250905-120400 | 6 | propose_for_backlog | PBI 6 moved from Proposed to Agreed; detail doc created | ai-agent |
 | 20250905-120400 | 7 | propose_for_backlog | PBI 7 moved from Proposed to Agreed; detail doc created | ai-agent |
 | 20250905-120400 | 8 | propose_for_backlog | PBI 8 moved from Proposed to Agreed; detail doc created | ai-agent |
+| 20250911-120000 | 9 | create_pbi | Created PBI 9 (Railway Project Browsing & Details) | ai-agent |
+| 20250911-120010 | 7 | significant_update | Updated CoS to include resource attribution metadata and Railway association IDs | ai-agent |
