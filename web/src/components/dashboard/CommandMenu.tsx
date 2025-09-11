@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CommandDialog,
   CommandEmpty,
@@ -11,14 +11,18 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { useEnvironments } from "@/hooks/useEnvironments";
+import { useRailwayProjectsDetails } from "@/hooks/useRailway";
 import { useDashboardStore } from "@/store/dashboard";
 
 export function CommandMenu() {
   const [open, setOpen] = React.useState(false);
-  const { data = [] } = useEnvironments();
-  const { setQuery, setStatus, setType } = useDashboardStore();
+  const { data: projects = [] } = useRailwayProjectsDetails();
+  const { setQuery, setSortBy, setView } = useDashboardStore();
   const router = useRouter();
+  const pathname = usePathname();
+  const isDashboard = pathname?.startsWith("/dashboard");
+  const isProject = pathname?.startsWith("/project/");
+  const currentUrl = typeof window !== "undefined" ? window.location.href : "";
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -33,30 +37,43 @@ export function CommandMenu() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search environments or type a command…" />
+      <CommandInput placeholder="Type a command… (⌘K)" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Environments">
-          {data.slice(0, 8).map((e) => (
-            <CommandItem key={e.id} value={e.name} onSelect={() => { setQuery(e.name); setOpen(false); }}>
-              {e.name}
-            </CommandItem>
-          ))}
-        </CommandGroup>
-        <CommandSeparator />
-        <CommandGroup heading="Filters">
-          <CommandItem onSelect={() => { setStatus("all"); setOpen(false); }}>All</CommandItem>
-          <CommandItem onSelect={() => { setStatus("active"); setOpen(false); }}>Active</CommandItem>
-          <CommandItem onSelect={() => { setStatus("creating"); setOpen(false); }}>Creating</CommandItem>
-          <CommandItem onSelect={() => { setStatus("error"); setOpen(false); }}>Error</CommandItem>
-          <CommandItem onSelect={() => { setType("dev"); setOpen(false); }}>Type: Dev</CommandItem>
-          <CommandItem onSelect={() => { setType("prod"); setOpen(false); }}>Type: Prod</CommandItem>
-          <CommandItem onSelect={() => { setType("any"); setOpen(false); }}>Type: Any</CommandItem>
-        </CommandGroup>
-        <CommandSeparator />
         <CommandGroup heading="Navigation">
           <CommandItem onSelect={() => { router.push("/dashboard"); setOpen(false); }}>Go to Dashboard</CommandItem>
         </CommandGroup>
+        <CommandSeparator />
+        <CommandGroup heading="Projects">
+          {projects.slice(0, 10).map((p) => (
+            <CommandItem key={p.id} value={p.name} onSelect={() => { router.push(`/project/${p.id}`); setOpen(false); }}>{p.name}</CommandItem>
+          ))}
+        </CommandGroup>
+        <CommandSeparator />
+        {isDashboard && (
+          <>
+            <CommandGroup heading="Dashboard">
+              <CommandItem onSelect={() => { setSortBy("name" as any); setOpen(false); }}>Sort by name</CommandItem>
+              <CommandItem onSelect={() => { setSortBy("services" as any); setOpen(false); }}>Sort by services</CommandItem>
+              <CommandItem onSelect={() => { setSortBy("plugins" as any); setOpen(false); }}>Sort by plugins</CommandItem>
+              <CommandItem onSelect={() => { setSortBy("environments" as any); setOpen(false); }}>Sort by environments</CommandItem>
+              <CommandSeparator />
+              <CommandItem onSelect={() => { setView("grid" as any); setOpen(false); }}>View: Grid</CommandItem>
+              <CommandItem onSelect={() => { setView("list" as any); setOpen(false); }}>View: Table</CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
+        {isProject && (
+          <>
+            <CommandGroup heading="Project">
+              <CommandItem onSelect={() => { if (currentUrl) { navigator.clipboard?.writeText(currentUrl).catch(() => {});} setOpen(false); }}>Copy page link</CommandItem>
+              <CommandItem onSelect={() => { const url = new URL(currentUrl); if (!url.searchParams.has("demo")) url.searchParams.set("demo", "1"); router.push(url.pathname + "?" + url.searchParams.toString()); setOpen(false); }}>Enable demo data</CommandItem>
+              <CommandItem onSelect={() => { const url = new URL(currentUrl); url.searchParams.delete("demo"); router.push(url.pathname + (url.searchParams.toString() ? ("?" + url.searchParams.toString()) : "")); setOpen(false); }}>Disable demo data</CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+          </>
+        )}
       </CommandList>
     </CommandDialog>
   );
