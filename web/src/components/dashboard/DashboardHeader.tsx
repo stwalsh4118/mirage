@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,8 +12,9 @@ export function DashboardHeader() {
     <div className="glass grain sticky top-0 z-40">
       <div className="max-w-screen-2xl mx-auto px-8 py-3 flex items-center gap-3">
         <div className="flex items-center gap-2 pr-2">
-          <Image src="/mirage_logo.png" alt="Mirage" width={28} height={28} className="h-7 w-auto" />
-          <span className="text-sm text-muted-foreground">Dashboard</span>
+          <Link href="/dashboard" aria-label="Go to Dashboard" className="inline-flex items-center">
+            <Image src="/mirage_logo.png" alt="Mirage" width={36} height={36} className="h-9 w-auto" />
+          </Link>
         </div>
         <Separator orientation="vertical" className="mx-1 h-6" />
         <div className="flex-1">
