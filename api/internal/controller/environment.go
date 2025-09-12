@@ -43,6 +43,8 @@ func (c *EnvironmentController) RegisterRoutes(r *gin.Engine) {
 	// railway proxy helpers
 	r.GET("/railway/projects", c.ListRailwayProjects)
 	r.GET("/railway/project/:id", c.GetRailwayProject)
+	// provisioning endpoints
+	r.POST("/api/provision/project", c.ProvisionProject)
 }
 
 func (c *EnvironmentController) ListEnvironments(ctx *gin.Context) {
