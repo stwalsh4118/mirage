@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse } from "@/lib/api/railway";
+import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse } from "@/lib/api/railway";
 
 const RAILWAY_POLL_INTERVAL_MS = 30_000;
 
@@ -91,5 +91,11 @@ export function useImportRailwayEnvironments() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["environments"] });
     },
+  });
+}
+
+export function useProvisionProject() {
+  return useMutation<ProvisionProjectResponse, Error, ProvisionProjectRequest>({
+    mutationFn: (body) => provisionProject(body),
   });
 }

@@ -61,3 +61,24 @@ export function importRailwayEnvironments(body: ImportRailwayEnvsRequest): Promi
     body: JSON.stringify(body),
   });
 }
+
+// Provision: Create Project
+export type ProvisionProjectRequest = {
+  defaultEnvironmentName?: string;
+  name?: string;
+  requestId: string;
+};
+
+export type ProvisionProjectResponse = {
+  projectId: string;
+  baseEnvironmentId: string;
+  name: string;
+};
+
+export function provisionProject(body: ProvisionProjectRequest): Promise<ProvisionProjectResponse> {
+  return fetchJSON<ProvisionProjectResponse>(`/api/provision/project`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
