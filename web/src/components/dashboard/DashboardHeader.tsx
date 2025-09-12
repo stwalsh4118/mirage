@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { CreateEnvironmentDialog } from "@/components/wizard/CreateEnvironmentDialog";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -21,7 +22,7 @@ export function DashboardHeader() {
           <Input placeholder="Search environments…  (⌘K)" className="h-9" />
         </div>
         <div className="flex items-center gap-2 pl-2">
-          <Button size="sm">New Environment</Button>
+          <CreateEnvironmentDialog trigger={<Button size="sm">New Environment</Button>} />
           <Avatar className="h-8 w-8">
             <AvatarImage alt="profile" />
             <AvatarFallback>ME</AvatarFallback>
