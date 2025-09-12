@@ -21,7 +21,7 @@ export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T>
 }
 
 export function getHealth(): Promise<HealthResponse> {
-    return fetchJSON<HealthResponse>("/healthz");
+    return fetchJSON<HealthResponse>("/api/v1/healthz");
 }
 
 

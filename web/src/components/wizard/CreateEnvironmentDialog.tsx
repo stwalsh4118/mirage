@@ -7,7 +7,7 @@ import { WizardStepper } from "@/components/wizard/WizardStepper";
 import { WizardFooter } from "@/components/wizard/WizardFooter";
 import { useWizardStore } from "@/store/wizard";
 import { StepProject, StepSource, StepConfig, StepReview } from "./steps";
-import { useProvisionProject } from "@/hooks/useRailway";
+import { useProvisionEnvironment, useProvisionProject } from "@/hooks/useRailway";
 
 export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -15,6 +15,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
   const { currentStepIndex } = useWizardStore();
   const { projectSelectionMode, defaultEnvironmentName, newProjectName, setField } = useWizardStore();
   const provisionProject = useProvisionProject();
+  const provisionEnvironment = useProvisionEnvironment();
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -41,7 +42,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
             {currentStepIndex === 3 && <StepReview />}
           </div>
           <WizardFooter
-            isSubmitting={provisionProject.isPending}
+            isSubmitting={provisionProject.isPending || provisionEnvironment.isPending}
             onConfirm={() => {
               const state = useWizardStore.getState();
               // Intentionally logging full wizard state for inspection
@@ -76,6 +77,13 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
                     },
                   }
                 );
+              } else if (projectSelectionMode === "existing") {
+                const requestId = crypto.randomUUID();
+                const projId = state.existingProjectId;
+                const envName = state.environmentName || state.defaultEnvironmentName;
+                if (projId && envName) {
+                  provisionEnvironment.mutate({ requestId, projectId: projId, name: envName });
+                }
               }
             }}
           />

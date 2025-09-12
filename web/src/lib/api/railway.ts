@@ -27,7 +27,7 @@ export function listRailwayProjectsByNames(names: unknown): Promise<RailwayProje
   }
   const suffix = qs.toString();
   const path = suffix ? `/railway/projects?${suffix}` : `/railway/projects`;
-  return fetchJSON<RailwayProject[]>(path);
+  return fetchJSON<RailwayProject[]>(`/api/v1${path}`);
 }
 
 export function listRailwayProjectsDetails(names?: unknown): Promise<RailwayProjectDetails[]> {
@@ -40,7 +40,7 @@ export function listRailwayProjectsDetails(names?: unknown): Promise<RailwayProj
   if ((names as string[]).length) {
     qs.set('names', (names as string[]).join(','));
   }
-  return fetchJSON<RailwayProjectDetails[]>(`/railway/projects?${qs.toString()}`);
+  return fetchJSON<RailwayProjectDetails[]>(`/api/v1/railway/projects?${qs.toString()}`);
 }
 
 export type ImportRailwayEnvsRequest = {
@@ -55,7 +55,7 @@ export type ImportRailwayEnvsResponse = {
 };
 
 export function importRailwayEnvironments(body: ImportRailwayEnvsRequest): Promise<ImportRailwayEnvsResponse> {
-  return fetchJSON<ImportRailwayEnvsResponse>(`/railway/import/environments`, {
+  return fetchJSON<ImportRailwayEnvsResponse>(`/api/v1/railway/import/environments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -76,7 +76,26 @@ export type ProvisionProjectResponse = {
 };
 
 export function provisionProject(body: ProvisionProjectRequest): Promise<ProvisionProjectResponse> {
-  return fetchJSON<ProvisionProjectResponse>(`/api/provision/project`, {
+  return fetchJSON<ProvisionProjectResponse>(`/api/v1/provision/project`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+// Provision: Create Environment
+export type ProvisionEnvironmentRequest = {
+  projectId: string;
+  name: string;
+  requestId: string;
+};
+
+export type ProvisionEnvironmentResponse = {
+  environmentId: string;
+};
+
+export function provisionEnvironment(body: ProvisionEnvironmentRequest): Promise<ProvisionEnvironmentResponse> {
+  return fetchJSON<ProvisionEnvironmentResponse>(`/api/v1/provision/environment`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
