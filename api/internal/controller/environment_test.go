@@ -21,14 +21,15 @@ func TestEnvironmentController_CreateAndGet(t *testing.T) {
 	ec := &EnvironmentController{DB: db, Railway: nil}
 
 	r := gin.New()
-	ec.RegisterRoutes(r)
+	v1 := r.Group("/api/v1")
+	ec.RegisterRoutes(v1)
 
 	payload := map[string]any{
 		"name": "env-a",
 		"type": "dev",
 	}
 	b, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/environments", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/environments", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -46,7 +47,7 @@ func TestEnvironmentController_CreateAndGet(t *testing.T) {
 	}
 
 	w2 := httptest.NewRecorder()
-	r.ServeHTTP(w2, httptest.NewRequest(http.MethodGet, "/environments/"+id, nil))
+	r.ServeHTTP(w2, httptest.NewRequest(http.MethodGet, "/api/v1/environments/"+id, nil))
 	if w2.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w2.Code)
 	}
@@ -61,7 +62,8 @@ func TestEnvironmentController_ListAndDestroy(t *testing.T) {
 	ec := &EnvironmentController{DB: db, Railway: nil}
 
 	r := gin.New()
-	ec.RegisterRoutes(r)
+	v1 := r.Group("/api/v1")
+	ec.RegisterRoutes(v1)
 
 	// Create
 	payload := map[string]any{
@@ -69,7 +71,7 @@ func TestEnvironmentController_ListAndDestroy(t *testing.T) {
 		"type": "dev",
 	}
 	b, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/environments", bytes.NewReader(b))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/environments", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -82,14 +84,14 @@ func TestEnvironmentController_ListAndDestroy(t *testing.T) {
 
 	// List
 	wList := httptest.NewRecorder()
-	r.ServeHTTP(wList, httptest.NewRequest(http.MethodGet, "/environments", nil))
+	r.ServeHTTP(wList, httptest.NewRequest(http.MethodGet, "/api/v1/environments", nil))
 	if wList.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", wList.Code)
 	}
 
 	// Destroy
 	wDel := httptest.NewRecorder()
-	r.ServeHTTP(wDel, httptest.NewRequest(http.MethodDelete, "/environments/"+id, nil))
+	r.ServeHTTP(wDel, httptest.NewRequest(http.MethodDelete, "/api/v1/environments/"+id, nil))
 	if wDel.Code != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", wDel.Code)
 	}
