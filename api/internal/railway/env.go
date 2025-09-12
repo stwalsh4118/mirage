@@ -1,6 +1,10 @@
 package railway
 
-import "context"
+import (
+	"context"
+
+	"github.com/rs/zerolog/log"
+)
 
 // CreateEnvironmentInput contains minimal fields to create an environment.
 type CreateEnvironmentInput struct {
@@ -15,19 +19,22 @@ type CreateEnvironmentResult struct {
 
 // CreateEnvironment executes the create environment mutation.
 func (c *Client) CreateEnvironment(ctx context.Context, in CreateEnvironmentInput) (CreateEnvironmentResult, error) {
-	mutation := `mutation EnvironmentCreate($projectId: ID!, $name: String) {
-  environmentCreate(input: { projectId: $projectId, name: $name }) {
-    id
-    name
-    projectId
-    createdAt
-    updatedAt
-  }
+	mutation := `mutation EnvironmentCreate($projectId: String!, $name: String!) {
+    environmentCreate(input: { projectId: $projectId, name: $name }) {
+        createdAt
+        id
+        name
+        projectId
+        updatedAt
+    }
 }`
+
 	vars := map[string]any{
 		"projectId": in.ProjectID,
 		"name":      in.Name,
 	}
+
+	log.Info().Str("project_id", in.ProjectID).Str("name", in.Name).Msg("creating environment")
 	var resp struct {
 		EnvironmentCreate struct {
 			ID        string `json:"id"`
