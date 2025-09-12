@@ -7,11 +7,14 @@ import { WizardStepper } from "@/components/wizard/WizardStepper";
 import { WizardFooter } from "@/components/wizard/WizardFooter";
 import { useWizardStore } from "@/store/wizard";
 import { StepProject, StepSource, StepConfig, StepReview } from "./steps";
+import { useProvisionProject } from "@/hooks/useRailway";
 
 export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const reset = useWizardStore((s) => s.reset);
   const { currentStepIndex } = useWizardStore();
+  const { projectSelectionMode, defaultEnvironmentName, newProjectName, setField } = useWizardStore();
+  const provisionProject = useProvisionProject();
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -38,6 +41,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
             {currentStepIndex === 3 && <StepReview />}
           </div>
           <WizardFooter
+            isSubmitting={provisionProject.isPending}
             onConfirm={() => {
               const state = useWizardStore.getState();
               // Intentionally logging full wizard state for inspection
@@ -61,6 +65,18 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
                   environmentVariables: state.environmentVariables,
                 },
               });
+              // Kick off project creation if needed
+              if (projectSelectionMode === "new") {
+                const requestId = crypto.randomUUID();
+                provisionProject.mutate(
+                  { requestId, defaultEnvironmentName, name: newProjectName || undefined },
+                  {
+                    onSuccess: (res) => {
+                      setField("createdProjectId", res.projectId);
+                    },
+                  }
+                );
+              }
             }}
           />
         </div>
