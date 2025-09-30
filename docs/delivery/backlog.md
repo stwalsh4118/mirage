@@ -16,6 +16,11 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | <a id="8"></a>8 | Tech lead | Add PR Integration for ephemeral envs lifecycle tied to PRs. [View Details](./8/prd.md) | Agreed | Webhook intake; Comment env URL on PR; Auto-destroy on close/merge; TTL enforcement |
 | <a id="9"></a>9 | Developer | As a user, I want to browse my Railway projects and, in a project view, see its environments and services so I can navigate and understand what exists before creating anything in Mirage. [View Details](./9/prd.md) | Agreed | Dashboard lists Railway projects with counts; Project page shows environments and services (read-only); Uses Railway API with ~30s polling; No write/import actions |
 | <a id="10"></a>10 | Developer | Build Environment Creation Wizard to provision a full Railway hierarchy (new or existing project) and create environments with services. [View Details](./10/prd.md) | Agreed | Create new Railway project or select existing; Create environment and core services; Apply templates (dev/prod); Configure env vars and TTL; Show progress and errors end-to-end |
+| <a id="11"></a>11 | Developer | Enable service creation from pre-built Docker images instead of only from source repositories. [View Details](./11/prd.md) | Proposed | Support Docker Hub, GHCR, and custom registries; Configure image tag/digest; Set environment variables and ports; Validate image accessibility; Update wizard to support image-based deployment |
+| <a id="12"></a>12 | Platform engineer | Automatically discover Dockerfiles in monorepo subdirectories and enable multi-service deployment from Docker images. [View Details](./12/prd.md) | Proposed | Scan monorepo for Dockerfiles; Detect service boundaries; Parse Dockerfile metadata; Present discovered services in UI; Support selective service deployment from images |
+| <a id="13"></a>13 | Developer | Store comprehensive service build configuration and environment metadata to enable environment duplication and templating. [View Details](./13/prd.md) | Proposed | Persist Dockerfile paths, build args, and contexts; Store image registry config; Capture service dependencies; Enable metadata export/import; Support environment-as-template creation |
+| <a id="14"></a>14 | Developer | View, search, and filter unified logs across all services in an environment. [View Details](./14/prd.md) | Proposed | Fetch logs from Railway API; Multi-service log aggregation; Real-time log streaming; Search and filtering; Time range selection; Export logs capability |
+| <a id="15"></a>15 | Developer | Clone an existing environment with all its services, configuration, and metadata. [View Details](./15/prd.md) | Proposed | Deep copy environment metadata; Recreate all services with same config; Clone environment variables; Support cross-project cloning; Preserve service relationships; Update wizard with clone option |
 
 ## History
 
@@ -42,3 +47,8 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | 20250911-120100 | 9 | propose_for_backlog | PBI 9 moved from Proposed to Agreed; detail doc created | ai-agent |
 | 20250911-120500 | 10 | create_pbi | Created PBI 10 (Environment Creation Wizard & Full Railway Provisioning) | ai-agent |
 | 20250911-120510 | 10 | propose_for_backlog | PBI 10 moved from Proposed to Agreed; detail doc created | sean |
+| 20250930-143000 | 11 | create_pbi | Created PBI 11 (Docker Image Service Deployment) | ai-agent |
+| 20250930-143000 | 12 | create_pbi | Created PBI 12 (Monorepo Dockerfile Discovery) | ai-agent |
+| 20250930-143000 | 13 | create_pbi | Created PBI 13 (Service Build Configuration Management) | ai-agent |
+| 20250930-143000 | 14 | create_pbi | Created PBI 14 (Service Logs Viewer) | ai-agent |
+| 20250930-143000 | 15 | create_pbi | Created PBI 15 (Environment Cloning) | ai-agent |
