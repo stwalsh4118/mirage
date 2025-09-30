@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse } from "@/lib/api/railway";
+import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment } from "@/lib/api/railway";
 
 const RAILWAY_POLL_INTERVAL_MS = 30_000;
 
@@ -109,5 +109,15 @@ export function useProvisionEnvironment() {
 export function useProvisionServices() {
   return useMutation<ProvisionServicesResponse, Error, ProvisionServicesRequest>({
     mutationFn: (body) => provisionServices(body),
+  });
+}
+
+export function useDeleteRailwayEnvironment() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: (railwayEnvironmentId: string) => deleteRailwayEnvironment(railwayEnvironmentId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+    },
   });
 }

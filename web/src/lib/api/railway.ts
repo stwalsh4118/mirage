@@ -121,3 +121,10 @@ export function provisionServices(body: ProvisionServicesRequest): Promise<Provi
     body: JSON.stringify(body),
   });
 }
+
+// Delete Railway environment by Railway environment ID
+export function deleteRailwayEnvironment(railwayEnvironmentId: string): Promise<void> {
+  return fetchJSON<void>(`/api/v1/railway/environment/${railwayEnvironmentId}`, {
+    method: 'DELETE',
+  });
+}
