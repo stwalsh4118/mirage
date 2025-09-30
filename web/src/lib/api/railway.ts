@@ -101,3 +101,23 @@ export function provisionEnvironment(body: ProvisionEnvironmentRequest): Promise
     body: JSON.stringify(body),
   });
 }
+
+// Provision: Create Services
+export type ProvisionServicesRequest = {
+  projectId: string;
+  environmentId: string;
+  services: { name: string; repo?: string; branch?: string }[];
+  requestId: string;
+};
+
+export type ProvisionServicesResponse = {
+  serviceIds: string[];
+};
+
+export function provisionServices(body: ProvisionServicesRequest): Promise<ProvisionServicesResponse> {
+  return fetchJSON<ProvisionServicesResponse>(`/api/v1/provision/services`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
