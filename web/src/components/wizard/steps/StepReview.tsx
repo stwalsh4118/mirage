@@ -2,8 +2,6 @@
 
 import { useWizardStore } from "@/store/wizard";
 import { useRailwayProjectsDetails } from "@/hooks/useRailway";
-import { Label } from "@/components/ui/label";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function StepReview() {
@@ -18,7 +16,6 @@ export function StepReview() {
     templateKind,
     ttlHours,
     environmentVariables,
-    setField,
   } = useWizardStore();
 
   const summaryVars = environmentVariables.filter((v) => v.key.trim().length > 0);

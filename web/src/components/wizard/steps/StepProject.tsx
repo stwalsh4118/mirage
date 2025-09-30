@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 
 export function StepProject() {
-  const { projectSelectionMode, existingProjectId, existingProjectName, newProjectName, defaultEnvironmentName, setField } = useWizardStore();
+  const { projectSelectionMode, existingProjectId, newProjectName, defaultEnvironmentName, setField } = useWizardStore();
 
   const { data: projects = [], isLoading } = useRailwayProjectsDetails();
   const selectedProject = useMemo(() => projects.find((p) => p.id === existingProjectId), [projects, existingProjectId]);
