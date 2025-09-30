@@ -1,8 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useDeleteRailwayEnvironment } from "@/hooks/useRailway"
+import { MoreVertical, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 export interface Service {
   id: string
@@ -26,6 +32,9 @@ interface EnvironmentCardProps {
 }
 
 export function EnvironmentCard({ environment, isSelected, onSelect }: EnvironmentCardProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const deleteEnvironment = useDeleteRailwayEnvironment()
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "operational":
@@ -39,61 +48,135 @@ export function EnvironmentCard({ environment, isSelected, onSelect }: Environme
     }
   }
 
+  const handleDelete = async () => {
+    try {
+      await deleteEnvironment.mutateAsync(environment.id)
+      toast.success(`Environment "${environment.name}" deleted successfully`)
+      setShowDeleteDialog(false)
+    } catch (error) {
+      toast.error(`Failed to delete environment: ${error instanceof Error ? error.message : "Unknown error"}`)
+    }
+  }
+
   const runningServices = environment.services.filter((s) => s.status === "running").length
 
   return (
-    <Card
-      className={`glass grain cursor-pointer transition-all duration-200 hover:translate-y-[-1px] hover:scale-[1.01] ${
-        isSelected ? "ring-2 ring-accent" : ""
-      }`}
-      onClick={onSelect}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{environment.name}</CardTitle>
-          <Badge variant="secondary" className={getStatusColor(environment.status)}>{environment.status}</Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="text-sm text-muted-foreground">
-          <div className="truncate">{environment.url}</div>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="text-sm">
-            <span className="font-medium">{runningServices}</span>
-            <span className="text-muted-foreground">/{environment.services.length} services</span>
+    <>
+      <Card
+        className={`glass grain cursor-pointer transition-all duration-200 hover:translate-y-[-1px] hover:scale-[1.01] ${
+          isSelected ? "ring-2 ring-accent" : ""
+        }`}
+        onClick={onSelect}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{environment.name}</CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className={getStatusColor(environment.status)}>{environment.status}</Badge>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More actions">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.stopPropagation()
+                      onSelect()
+                    }}
+                  >
+                    View details
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowDeleteDialog(true)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete environment
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-transparent"
-            onClick={(e) => {
-              e.stopPropagation()
-              // Handle direct action
-            }}
-          >
-            Manage
-          </Button>
-        </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="text-sm text-muted-foreground">
+            <div className="truncate">{environment.url}</div>
+          </div>
 
-        {/* Service Status Indicators */}
-        <div className="flex gap-1">
-          {environment.services.map((service) => (
-            <div
-              key={service.id}
-              className={`w-2 h-2 rounded-full ${
-                service.status === "running"
-                  ? "bg-emerald-500"
-                  : service.status === "error"
-                    ? "bg-red-500"
-                    : "bg-gray-400"
-              }`}
-              title={`${service.name}: ${service.status}`}
-            />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          <div className="flex items-center justify-between">
+            <div className="text-sm">
+              <span className="font-medium">{runningServices}</span>
+              <span className="text-muted-foreground">/{environment.services.length} services</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-transparent"
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelect()
+              }}
+            >
+              Manage
+            </Button>
+          </div>
+
+          {/* Service Status Indicators */}
+          <div className="flex gap-1">
+            {environment.services.map((service) => (
+              <div
+                key={service.id}
+                className={`w-2 h-2 rounded-full ${
+                  service.status === "running"
+                    ? "bg-emerald-500"
+                    : service.status === "error"
+                      ? "bg-red-500"
+                      : "bg-gray-400"
+                }`}
+                title={`${service.name}: ${service.status}`}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Railway environment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{environment.name}</strong>? This action cannot be undone.
+              {environment.services.length > 0 && (
+                <>
+                  <br /><br />
+                  This will destroy the Railway environment and all <strong>{environment.services.length}</strong> associated service{environment.services.length === 1 ? "" : "s"}.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteEnvironment.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                void handleDelete()
+              }}
+              disabled={deleteEnvironment.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteEnvironment.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
