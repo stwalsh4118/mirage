@@ -2,35 +2,33 @@ package railway
 
 import (
 	"context"
-
-	"github.com/rs/zerolog/log"
 )
 
 // RegistryCredentials holds authentication for private container registries.
 type RegistryCredentials struct {
-	Username string
-	Password string
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // CreateServiceInput contains fields to create a service in an environment.
 // Supports both source repository and Docker image deployments.
 type CreateServiceInput struct {
-	ProjectID     string
-	EnvironmentID string
+	ProjectID     string `json:"projectId"`
+	EnvironmentID string `json:"environmentId"`
 	Name          string
 
 	// Source repository deployment (legacy/existing behavior)
-	Repo   *string
-	Branch *string
+	Repo   *string `json:"repo"`
+	Branch *string `json:"branch"`
 
 	// Docker image deployment (new)
-	Image               *string              // e.g., "nginx:latest", "ghcr.io/owner/repo:v1.0"
-	RegistryCredentials *RegistryCredentials // Optional, for private images
+	Image               *string              `json:"image"`               // e.g., "nginx:latest", "ghcr.io/owner/repo:v1.0"
+	RegistryCredentials *RegistryCredentials `json:"registryCredentials"` // Optional, for private images
 }
 
 // CreateServiceResult captures the created service identifier.
 type CreateServiceResult struct {
-	ServiceID string
+	ServiceID string `json:"serviceId"`
 }
 
 const serviceCreateMutation = `mutation ServiceCreate($input: ServiceCreateInput!) {
@@ -78,7 +76,6 @@ func (c *Client) CreateService(ctx context.Context, in CreateServiceInput) (Crea
 		"input": input,
 	}
 
-	log.Info().Interface("input", input).Msg("creating service")
 	var resp struct {
 		ServiceCreate struct {
 			ID string `json:"id"`
