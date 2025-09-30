@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment } from "@/lib/api/railway";
+import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment, deleteRailwayProject } from "@/lib/api/railway";
 
 const RAILWAY_POLL_INTERVAL_MS = 30_000;
 
@@ -118,6 +118,17 @@ export function useDeleteRailwayEnvironment() {
     mutationFn: (railwayEnvironmentId: string) => deleteRailwayEnvironment(railwayEnvironmentId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+    },
+  });
+}
+
+export function useDeleteRailwayProject() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: (projectId: string) => deleteRailwayProject(projectId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+      void qc.invalidateQueries({ queryKey: ["railway-projects"] });
     },
   });
 }

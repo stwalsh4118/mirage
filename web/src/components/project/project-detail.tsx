@@ -1,16 +1,29 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Trash2 } from "lucide-react"
 import { ProjectHeader } from "./project-header"
 import { EnvironmentCard, type Environment as UIEnvironment, type Service as UIService } from "./environment-card"
 import { ServicesList } from "./services-list"
 import { StatusOverview } from "./status-overview"
 
-import { useRailwayProjectsDetails } from "@/hooks/useRailway"
+import { useRailwayProjectsDetails, useDeleteRailwayProject } from "@/hooks/useRailway"
+import { toast } from "sonner"
 import type { RailwayProjectDetails } from "@/lib/api/railway"
 
 interface ProjectDetailProps {
@@ -21,8 +34,11 @@ interface ProjectDetailProps {
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [selectedEnvironment, setSelectedEnvironment] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const { data: projects = [], isLoading, isError, refetch } = useRailwayProjectsDetails()
+  const deleteProject = useDeleteRailwayProject()
+  const router = useRouter()
 
   const project: RailwayProjectDetails | undefined = useMemo(
     () => projects.find((p) => p.id === projectId || p.name === projectId),
@@ -46,6 +62,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const filteredEnvironments = environments.filter((env) =>
     env.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
+  const handleDelete = () => {
+    if (!project) return
+    deleteProject.mutate(project.id, {
+      onSuccess: () => {
+        toast.success(`"${project.name}" has been permanently deleted from Railway.`)
+        router.push("/dashboard")
+      },
+      onError: (error) => {
+        toast.error(error.message || "Could not delete project. Please try again.")
+      },
+    })
+    setShowDeleteDialog(false)
+  }
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -137,10 +167,49 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               <Button variant="outline" className="w-full bg-transparent" size="sm">
                 Settings
               </Button>
+              <Button
+                variant="outline"
+                className="w-full bg-transparent text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/10"
+                size="sm"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Project
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {project && (
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Railway Project?</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>
+                  You are about to permanently delete <strong>{project.name}</strong>.
+                </p>
+                <p className="text-destructive font-medium">
+                  This will delete all {environments.length} environment(s), {project.services?.length ?? 0} service(s), and all associated data.
+                  This action cannot be undone.
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteProject.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={deleteProject.isPending}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteProject.isPending ? "Deleting..." : "Delete project"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   )
 }

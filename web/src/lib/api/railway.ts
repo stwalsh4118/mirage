@@ -128,3 +128,11 @@ export function deleteRailwayEnvironment(railwayEnvironmentId: string): Promise<
     method: 'DELETE',
   });
 }
+
+// Delete Railway project by Railway project ID
+// WARNING: This is a destructive operation that deletes the project and all its resources
+export function deleteRailwayProject(projectId: string): Promise<void> {
+  return fetchJSON<void>(`/api/v1/railway/project/${projectId}`, {
+    method: 'DELETE',
+  });
+}
