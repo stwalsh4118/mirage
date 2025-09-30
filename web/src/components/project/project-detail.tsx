@@ -69,12 +69,12 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       onSuccess: () => {
         toast.success(`"${project.name}" has been permanently deleted from Railway.`)
         router.push("/dashboard")
+        setShowDeleteDialog(false)
       },
       onError: (error) => {
         toast.error(error.message || "Could not delete project. Please try again.")
       },
     })
-    setShowDeleteDialog(false)
   }
 
   return (

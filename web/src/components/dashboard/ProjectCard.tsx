@@ -36,12 +36,12 @@ export function ProjectCard({ project }: { project: RailwayProjectDetails }) {
     deleteProject.mutate(project.id, {
       onSuccess: () => {
         toast.success(`"${project.name}" has been permanently deleted from Railway.`);
+        setShowDeleteDialog(false);
       },
       onError: (error) => {
         toast.error(error.message || "Could not delete project. Please try again.");
       },
     });
-    setShowDeleteDialog(false);
   };
 
   return (
