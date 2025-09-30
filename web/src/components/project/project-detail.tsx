@@ -11,7 +11,7 @@ import { ServicesList } from "./services-list"
 import { StatusOverview } from "./status-overview"
 
 import { useRailwayProjectsDetails } from "@/hooks/useRailway"
-import type { RailwayEnvironmentWithServices, RailwayProjectDetails } from "@/lib/api/railway"
+import type { RailwayProjectDetails } from "@/lib/api/railway"
 
 interface ProjectDetailProps {
   projectId: string

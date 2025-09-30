@@ -11,7 +11,7 @@ export function Hero() {
   useEffect(() => {
     const interval = setInterval(() => setCurrentEnv((prev) => (prev + 1) % environments.length), 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [environments.length]);
 
   const handleGetStarted = () => alert("Ready to create your first environment!");
 

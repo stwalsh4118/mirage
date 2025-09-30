@@ -1,5 +1,4 @@
 "use client";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { KpiStrip } from "@/components/dashboard/KpiStrip";
 import { ControlsBar } from "@/components/dashboard/ControlsBar";
 import { ProjectsAccordion } from "@/components/dashboard/ProjectsAccordion";

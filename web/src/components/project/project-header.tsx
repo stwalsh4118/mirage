@@ -3,13 +3,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Breadcrumbs } from "@/components/Breadcrumbs"
 
+interface Environment {
+  id: string;
+  name: string;
+}
+
 interface Project {
   id: string
   name: string
   description?: string
   status?: "active" | "inactive" | "error"
   createdAt?: string
-  environments: any[]
+  environments: Environment[]
 }
 
 interface ProjectHeaderProps {

@@ -17,7 +17,7 @@ import { useDashboardStore } from "@/store/dashboard";
 export function CommandMenu() {
   const [open, setOpen] = React.useState(false);
   const { data: projects = [] } = useRailwayProjectsDetails();
-  const { setQuery, setSortBy, setView } = useDashboardStore();
+  const { setSortBy, setView } = useDashboardStore();
   const router = useRouter();
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith("/dashboard");
@@ -53,13 +53,13 @@ export function CommandMenu() {
         {isDashboard && (
           <>
             <CommandGroup heading="Dashboard">
-              <CommandItem onSelect={() => { setSortBy("name" as any); setOpen(false); }}>Sort by name</CommandItem>
-              <CommandItem onSelect={() => { setSortBy("services" as any); setOpen(false); }}>Sort by services</CommandItem>
-              <CommandItem onSelect={() => { setSortBy("plugins" as any); setOpen(false); }}>Sort by plugins</CommandItem>
-              <CommandItem onSelect={() => { setSortBy("environments" as any); setOpen(false); }}>Sort by environments</CommandItem>
+              <CommandItem onSelect={() => { setSortBy("name"); setOpen(false); }}>Sort by name</CommandItem>
+              <CommandItem onSelect={() => { setSortBy("services"); setOpen(false); }}>Sort by services</CommandItem>
+              <CommandItem onSelect={() => { setSortBy("plugins"); setOpen(false); }}>Sort by plugins</CommandItem>
+              <CommandItem onSelect={() => { setSortBy("environments"); setOpen(false); }}>Sort by environments</CommandItem>
               <CommandSeparator />
-              <CommandItem onSelect={() => { setView("grid" as any); setOpen(false); }}>View: Grid</CommandItem>
-              <CommandItem onSelect={() => { setView("list" as any); setOpen(false); }}>View: Table</CommandItem>
+              <CommandItem onSelect={() => { setView("grid"); setOpen(false); }}>View: Grid</CommandItem>
+              <CommandItem onSelect={() => { setView("list"); setOpen(false); }}>View: Table</CommandItem>
             </CommandGroup>
             <CommandSeparator />
           </>

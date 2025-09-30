@@ -57,6 +57,8 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 	if db != nil && rw != nil {
 		ec := &controller.EnvironmentController{DB: db, Railway: rw}
 		ec.RegisterRoutes(v1)
+		sc := &controller.ServicesController{Railway: rw}
+		sc.RegisterRoutes(v1)
 	}
 
 	v1.GET("/healthz", func(c *gin.Context) {
