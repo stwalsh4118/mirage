@@ -14,6 +14,31 @@ export const WIZARD_STEPS_ORDER: WizardStepId[] = [
 
 export type ProjectSelectionMode = "existing" | "new";
 
+export type ProvisionStage = 
+  | 'idle'
+  | 'creating-project'
+  | 'creating-environment'
+  | 'creating-services'
+  | 'applying-config'
+  | 'complete'
+  | 'failed';
+
+export type StageStatus = 'pending' | 'running' | 'success' | 'error';
+
+export interface ServiceProgress {
+  name: string;
+  status: StageStatus;
+  serviceId?: string;
+  error?: string;
+}
+
+export interface StageInfo {
+  status: StageStatus;
+  error?: string;
+  startedAt?: number;
+  completedAt?: number;
+}
+
 export type WizardState = {
   currentStepIndex: number;
   requestId: string | null;
@@ -38,15 +63,26 @@ export type WizardState = {
   // Step 3: Strategy
   deploymentStrategy: "sequential" | "parallel";
 
+  // Provision state
+  isProvisioning: boolean;
+  currentStage: ProvisionStage;
+  stages: Record<string, StageInfo>;
+  serviceProgress: ServiceProgress[];
+
   // Derived IDs returned during submission (for resume)
   createdProjectId?: string;
   createdEnvironmentId?: string;
+  createdServiceIds?: string[];
 
   // Actions
   goNext: () => void;
   goBack: () => void;
   goTo: (index: number) => void;
   setField: <K extends keyof WizardState>(key: K, value: WizardState[K]) => void;
+  setStageStatus: (stage: ProvisionStage, status: StageStatus, error?: string) => void;
+  setServiceProgress: (services: ServiceProgress[]) => void;
+  updateServiceProgress: (index: number, update: Partial<ServiceProgress>) => void;
+  startProvisioning: () => void;
   reset: () => void;
 };
 
@@ -55,6 +91,10 @@ const initialState: Omit<WizardState,
   | "goBack"
   | "goTo"
   | "setField"
+  | "setStageStatus"
+  | "setServiceProgress"
+  | "updateServiceProgress"
+  | "startProvisioning"
   | "reset"
 > = {
   currentStepIndex: 0,
@@ -76,8 +116,14 @@ const initialState: Omit<WizardState,
 
   deploymentStrategy: "sequential",
 
+  isProvisioning: false,
+  currentStage: "idle",
+  stages: {},
+  serviceProgress: [],
+
   createdProjectId: undefined,
   createdEnvironmentId: undefined,
+  createdServiceIds: undefined,
 };
 
 export const useWizardStore = create<WizardState>()(
@@ -97,6 +143,38 @@ export const useWizardStore = create<WizardState>()(
         set({ currentStepIndex: bounded });
       },
       setField: (key, value) => set({ [key]: value } as Partial<WizardState>),
+      setStageStatus: (stage, status, error) => {
+        const stages = { ...get().stages };
+        const now = Date.now();
+        stages[stage] = {
+          ...stages[stage],
+          status,
+          error,
+          startedAt: stages[stage]?.startedAt || (status === 'running' ? now : undefined),
+          completedAt: status === 'success' || status === 'error' ? now : undefined,
+        };
+        set({ 
+          stages,
+          currentStage: stage,
+          // Keep isProvisioning true until explicitly complete or failed
+          isProvisioning: status === 'running' || status === 'pending',
+        });
+      },
+      setServiceProgress: (services) => set({ serviceProgress: services }),
+      updateServiceProgress: (index, update) => {
+        const serviceProgress = [...get().serviceProgress];
+        serviceProgress[index] = { ...serviceProgress[index], ...update };
+        set({ serviceProgress });
+      },
+      startProvisioning: () => {
+        set({ 
+          isProvisioning: true,
+          currentStage: 'idle',
+          stages: {},
+          serviceProgress: [],
+          requestId: crypto.randomUUID(),
+        });
+      },
       reset: () => set({ ...initialState }),
     }),
     { name: "mirage-wizard-store" }
