@@ -198,3 +198,26 @@ func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
 
 	ctx.Status(http.StatusNoContent)
 }
+
+// DeleteRailwayProject deletes a Railway project and all its associated resources.
+// WARNING: This is a destructive operation that cannot be undone.
+func (c *EnvironmentController) DeleteRailwayProject(ctx *gin.Context) {
+	if c.Railway == nil {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
+		return
+	}
+	projectID := ctx.Param("id")
+	if projectID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "project id required"})
+		return
+	}
+
+	log.Warn().Str("project_id", projectID).Msg("deleting railway project - irreversible operation")
+	if err := c.Railway.DestroyProject(ctx, railway.DestroyProjectInput{ProjectID: projectID}); err != nil {
+		log.Error().Err(err).Str("project_id", projectID).Msg("railway delete project failed")
+		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}

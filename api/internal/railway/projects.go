@@ -362,3 +362,96 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 	log.Info().Int("total", len(result)).Str("sample", strings.Join(peek, ", ")).Msg("railway projects merged (details)")
 	return result, nil
 }
+
+// CreateProjectInput contains optional parameters for creating a project.
+type CreateProjectInput struct {
+	DefaultEnvironmentName *string
+	Name                   *string
+}
+
+// CreateProjectResult captures identifiers returned by Railway when creating a project.
+type CreateProjectResult struct {
+	ProjectID         string
+	BaseEnvironmentID string
+	Name              string
+}
+
+// CreateProject executes the projectCreate mutation.
+func (c *Client) CreateProject(ctx context.Context, in CreateProjectInput) (CreateProjectResult, error) {
+	mutation := `mutation ProjectCreate($defaultEnvironmentName: String, $name: String) {
+  projectCreate(input: { defaultEnvironmentName: $defaultEnvironmentName, name: $name }) {
+    id
+    name
+    environments {
+      edges {
+        cursor
+        node { id name }
+      }
+    }
+  }
+}`
+	vars := map[string]any{
+		"defaultEnvironmentName": in.DefaultEnvironmentName,
+		"name":                   in.Name,
+	}
+	var resp struct {
+		ProjectCreate struct {
+			ID           string `json:"id"`
+			Name         string `json:"name"`
+			Environments struct {
+				Edges []struct {
+					Cursor string `json:"cursor"`
+					Node   struct {
+						ID   string `json:"id"`
+						Name string `json:"name"`
+					} `json:"node"`
+				} `json:"edges"`
+			} `json:"environments"`
+		} `json:"projectCreate"`
+	}
+	if err := c.execute(ctx, mutation, vars, &resp); err != nil {
+		return CreateProjectResult{}, err
+	}
+	log.Info().Interface("resp", resp).Msg("creating project")
+
+	envID := ""
+	if len(resp.ProjectCreate.Environments.Edges) > 0 {
+		envID = resp.ProjectCreate.Environments.Edges[0].Node.ID
+	}
+	// Fallback: query project environments if still empty
+	if envID == "" {
+		pd, err := c.GetProjectWithDetailsByID(ctx, resp.ProjectCreate.ID)
+		if err != nil {
+			log.Warn().Err(err).Str("project_id", resp.ProjectCreate.ID).Msg("fallback fetch project details failed")
+		} else if len(pd.Environments) > 0 {
+			envID = pd.Environments[0].ID
+		}
+	}
+	return CreateProjectResult{ProjectID: resp.ProjectCreate.ID, BaseEnvironmentID: envID, Name: resp.ProjectCreate.Name}, nil
+}
+
+// DestroyProjectInput carries the project identifier.
+type DestroyProjectInput struct {
+	ProjectID string
+}
+
+// DestroyProject removes a project and all its associated resources.
+// WARNING: This is a destructive operation that cannot be undone.
+// All environments, services, and data within the project will be deleted.
+func (c *Client) DestroyProject(ctx context.Context, in DestroyProjectInput) error {
+	mutation := `mutation ProjectDelete($projectId: String!) {
+  projectDelete(id: $projectId)
+}`
+	vars := map[string]any{
+		"projectId": in.ProjectID,
+	}
+
+	log.Warn().
+		Str("project_id", in.ProjectID).
+		Msg("deleting Railway project - this operation is irreversible")
+
+	var resp struct {
+		ProjectDelete bool `json:"projectDelete"`
+	}
+	return c.execute(ctx, mutation, vars, &resp)
+}
