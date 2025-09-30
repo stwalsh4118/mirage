@@ -15,5 +15,6 @@ This document lists all tasks associated with PBI 10.
 | 10-5 | [Backend integration: create project/env/services](./10-5.md) | InProgress | Wire to backend endpoints and handle progress/errors |
 | 10-6 | [Error handling, retries, and cleanup UX](./10-6.md) | Proposed | Consistent patterns; user guidance and rollback options |
 | 10-7 | [E2E CoS Test for PBI 10](./10-7.md) | Proposed | Validate end-to-end wizard success and failure paths |
+| 10-8 | [Add deletion functionality for projects and environments](./10-8.md) | InProgress | Backend and frontend for deleting Railway projects and environments |
 
 
