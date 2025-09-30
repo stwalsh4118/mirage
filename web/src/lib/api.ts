@@ -13,6 +13,9 @@ export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T>
         headers: init?.headers,
         cache: "no-store",
     });
+    if (res.status === 204) {
+        return {} as T;
+    }
     if (!res.ok) {
         const body = await res.text().catch(() => "");
         throw new Error(`Request failed ${res.status}: ${body}`);
