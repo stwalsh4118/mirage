@@ -17,12 +17,19 @@ type ProjectItem struct {
 	Name string `json:"name"`
 }
 
+// ProjectEnvironment represents an environment within a project with its services
+type ProjectEnvironment struct {
+	ID       string        `json:"id"`
+	Name     string        `json:"name"`
+	Services []ProjectItem `json:"services"`
+}
+
 type ProjectDetails struct {
-	ID           string        `json:"id"`
-	Name         string        `json:"name"`
-	Services     []ProjectItem `json:"services"`
-	Plugins      []ProjectItem `json:"plugins"`
-	Environments []ProjectItem `json:"environments"`
+	ID           string               `json:"id"`
+	Name         string               `json:"name"`
+	Services     []ProjectItem        `json:"services"`
+	Plugins      []ProjectItem        `json:"plugins"`
+	Environments []ProjectEnvironment `json:"environments"`
 }
 
 const (
@@ -44,7 +51,22 @@ query ProjectDetails($id: ID!) {
     name
     services { edges { node { id name } } }
     plugins { edges { node { id name } } }
-    environments { edges { node { id name } } }
+    environments {
+      edges {
+        node {
+          id
+          name
+          serviceInstances {
+            edges {
+              node {
+                serviceName
+                serviceId
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 `
@@ -68,7 +90,22 @@ query ProjectsDetails_root($first: Int!) {
         name
         services { edges { node { id name } } }
         plugins { edges { node { id name } } }
-        environments { edges { node { id name } } }
+        environments {
+          edges {
+            node {
+              id
+              name
+              serviceInstances {
+                edges {
+                  node {
+                    serviceName
+                    serviceId
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -109,7 +146,18 @@ func (c *Client) GetProjectWithDetailsByID(ctx context.Context, id string) (Proj
 			} `json:"plugins"`
 			Environments struct {
 				Edges []struct {
-					Node ProjectItem `json:"node"`
+					Node struct {
+						ID               string `json:"id"`
+						Name             string `json:"name"`
+						ServiceInstances struct {
+							Edges []struct {
+								Node struct {
+									ServiceName string `json:"serviceName"`
+									ServiceID   string `json:"serviceId"`
+								} `json:"node"`
+							} `json:"edges"`
+						} `json:"serviceInstances"`
+					} `json:"node"`
 				} `json:"edges"`
 			} `json:"environments"`
 		} `json:"project"`
@@ -126,7 +174,11 @@ func (c *Client) GetProjectWithDetailsByID(ctx context.Context, id string) (Proj
 		pd.Plugins = append(pd.Plugins, pe.Node)
 	}
 	for _, ee := range out.Project.Environments.Edges {
-		pd.Environments = append(pd.Environments, ee.Node)
+		env := ProjectEnvironment{ID: ee.Node.ID, Name: ee.Node.Name}
+		for _, sie := range ee.Node.ServiceInstances.Edges {
+			env.Services = append(env.Services, ProjectItem{ID: sie.Node.ServiceID, Name: sie.Node.ServiceName})
+		}
+		pd.Environments = append(pd.Environments, env)
 	}
 	return pd, nil
 }
@@ -204,7 +256,18 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 		} `json:"plugins"`
 		Environments struct {
 			Edges []struct {
-				Node ProjectItem `json:"node"`
+				Node struct {
+					ID               string `json:"id"`
+					Name             string `json:"name"`
+					ServiceInstances struct {
+						Edges []struct {
+							Node struct {
+								ServiceName string `json:"serviceName"`
+								ServiceID   string `json:"serviceId"`
+							} `json:"node"`
+						} `json:"edges"`
+					} `json:"serviceInstances"`
+				} `json:"node"`
 			} `json:"edges"`
 		} `json:"environments"`
 	}) {
@@ -224,10 +287,14 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 			pd.Plugins = append(pd.Plugins, pe.Node)
 		}
 		if pd.Environments == nil {
-			pd.Environments = []ProjectItem{}
+			pd.Environments = []ProjectEnvironment{}
 		}
 		for _, ee := range p.Environments.Edges {
-			pd.Environments = append(pd.Environments, ee.Node)
+			env := ProjectEnvironment{ID: ee.Node.ID, Name: ee.Node.Name}
+			for _, sie := range ee.Node.ServiceInstances.Edges {
+				env.Services = append(env.Services, ProjectItem{ID: sie.Node.ServiceID, Name: sie.Node.ServiceName})
+			}
+			pd.Environments = append(pd.Environments, env)
 		}
 		acc[p.ID] = pd
 	}
@@ -253,7 +320,18 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 					} `json:"plugins"`
 					Environments struct {
 						Edges []struct {
-							Node ProjectItem `json:"node"`
+							Node struct {
+								ID               string `json:"id"`
+								Name             string `json:"name"`
+								ServiceInstances struct {
+									Edges []struct {
+										Node struct {
+											ServiceName string `json:"serviceName"`
+											ServiceID   string `json:"serviceId"`
+										} `json:"node"`
+									} `json:"edges"`
+								} `json:"serviceInstances"`
+							} `json:"node"`
 						} `json:"edges"`
 					} `json:"environments"`
 				} `json:"node"`

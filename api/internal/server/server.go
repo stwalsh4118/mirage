@@ -51,12 +51,15 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 			rw = v
 		}
 	}
+
+	api := r.Group("/api")
+	v1 := api.Group("/v1")
 	if db != nil && rw != nil {
 		ec := &controller.EnvironmentController{DB: db, Railway: rw}
-		ec.RegisterRoutes(r)
+		ec.RegisterRoutes(v1)
 	}
 
-	r.GET("/healthz", func(c *gin.Context) {
+	v1.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "ok",
 			"env":    cfg.Environment,

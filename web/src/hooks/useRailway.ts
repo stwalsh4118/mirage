@@ -1,23 +1,107 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails } from "@/lib/api/railway";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse } from "@/lib/api/railway";
+
+const RAILWAY_POLL_INTERVAL_MS = 30_000;
 
 export function useRailwayProjects(names: string[]) {
   return useQuery<RailwayProject[]>({
     queryKey: ["railway-projects", names.slice().sort().join(",")],
     queryFn: () => listRailwayProjectsByNames(names),
     enabled: names.length > 0,
-    staleTime: 30_000,
+    staleTime: RAILWAY_POLL_INTERVAL_MS,
+    refetchInterval: RAILWAY_POLL_INTERVAL_MS,
     refetchOnWindowFocus: false,
   });
 }
 
 export function useRailwayProjectsDetails(names?: string[]) {
+  const includeDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo");
   return useQuery<RailwayProjectDetails[]>({
-    queryKey: ["railway-projects-details", (names ?? []).slice().sort().join(",")],
+    queryKey: ["railway-projects-details", (names ?? []).slice().sort().join(","), includeDemo ? "demo" : "nodemo"],
     queryFn: () => listRailwayProjectsDetails(names),
-    staleTime: 30_000,
+    staleTime: RAILWAY_POLL_INTERVAL_MS,
+    refetchInterval: RAILWAY_POLL_INTERVAL_MS,
     refetchOnWindowFocus: false,
+    select: (data) => {
+      if (!includeDemo) return data;
+      const demo: RailwayProjectDetails = {
+        id: "starlight-orchestra",
+        name: "Starlight Orchestra",
+        services: [
+          { id: "api-gateway", name: "api-gateway" },
+          { id: "web-app", name: "web-app" },
+          { id: "worker-bus", name: "worker-bus" },
+          { id: "postgres", name: "postgres" },
+          { id: "redis", name: "redis" },
+          { id: "vector-db", name: "vector-db" },
+          { id: "image-cdn", name: "image-cdn" },
+        ],
+        plugins: [
+          { id: "grafana", name: "grafana" },
+          { id: "sentry", name: "sentry" },
+          { id: "datadog", name: "datadog" },
+          { id: "stripe", name: "stripe" },
+        ],
+        environments: [
+          {
+            id: "production",
+            name: "production",
+            services: [
+              { id: "web-app", name: "web-app" },
+              { id: "api-gateway", name: "api-gateway" },
+              { id: "postgres", name: "postgres" },
+              { id: "redis", name: "redis" },
+              { id: "image-cdn", name: "image-cdn" },
+            ],
+          },
+          {
+            id: "staging",
+            name: "staging",
+            services: [
+              { id: "web-app", name: "web-app" },
+              { id: "api-gateway", name: "api-gateway" },
+              { id: "postgres", name: "postgres" },
+              { id: "vector-db", name: "vector-db" },
+            ],
+          },
+          {
+            id: "preview",
+            name: "preview",
+            services: [
+              { id: "web-app", name: "web-app" },
+              { id: "worker-bus", name: "worker-bus" },
+            ],
+          },
+        ],
+      };
+      // Put demo first for visibility
+      const existing = data ?? [];
+      const withoutDup = existing.filter((p) => p.id !== demo.id);
+      return [demo, ...withoutDup];
+    },
+  });
+}
+
+export function useImportRailwayEnvironments() {
+  const qc = useQueryClient();
+  return useMutation<ImportRailwayEnvsResponse, Error, ImportRailwayEnvsRequest>({
+    mutationFn: (body) => importRailwayEnvironments(body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["environments"] });
+    },
+  });
+}
+
+export function useProvisionProject() {
+  return useMutation<ProvisionProjectResponse, Error, ProvisionProjectRequest>({
+    mutationFn: (body) => provisionProject(body),
+  });
+}
+
+export function useProvisionEnvironment() {
+  return useMutation<ProvisionEnvironmentResponse, Error, ProvisionEnvironmentRequest>({
+    mutationFn: (body) => provisionEnvironment(body),
   });
 }

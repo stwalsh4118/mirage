@@ -19,12 +19,13 @@ type EnvironmentController struct {
 }
 
 type createEnvRequest struct {
-	Name         string                `json:"name" binding:"required"`
-	Type         store.EnvironmentType `json:"type" binding:"required"`
-	SourceRepo   string                `json:"sourceRepo"`
-	SourceBranch string                `json:"sourceBranch"`
-	SourceCommit string                `json:"sourceCommit"`
-	TTLSeconds   *int64                `json:"ttlSeconds"`
+	Name             string                `json:"name" binding:"required"`
+	Type             store.EnvironmentType `json:"type" binding:"required"`
+	SourceRepo       string                `json:"sourceRepo"`
+	SourceBranch     string                `json:"sourceBranch"`
+	SourceCommit     string                `json:"sourceCommit"`
+	TTLSeconds       *int64                `json:"ttlSeconds"`
+	RailwayProjectID *string               `json:"railwayProjectId"`
 }
 
 type envResponse struct {
@@ -35,7 +36,7 @@ type envResponse struct {
 	CreatedAt string `json:"createdAt,omitempty"`
 }
 
-func (c *EnvironmentController) RegisterRoutes(r *gin.Engine) {
+func (c *EnvironmentController) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/environments", c.ListEnvironments)
 	r.POST("/environments", c.CreateEnvironment)
 	r.GET("/environments/:id", c.GetEnvironment)
@@ -43,6 +44,9 @@ func (c *EnvironmentController) RegisterRoutes(r *gin.Engine) {
 	// railway proxy helpers
 	r.GET("/railway/projects", c.ListRailwayProjects)
 	r.GET("/railway/project/:id", c.GetRailwayProject)
+	// provisioning endpoints
+	r.POST("/provision/project", c.ProvisionProject)
+	r.POST("/provision/environment", c.ProvisionEnvironment)
 }
 
 func (c *EnvironmentController) ListEnvironments(ctx *gin.Context) {
@@ -83,9 +87,14 @@ func (c *EnvironmentController) CreateEnvironment(ctx *gin.Context) {
 	}
 
 	if c.Railway != nil {
-		// Read project id from context (set by server)
-		projectID, _ := ctx.Get("railway_project_id")
-		pid, _ := projectID.(string)
+		// Determine Railway project id: prefer request override, otherwise use server-configured
+		pid := ""
+		if req.RailwayProjectID != nil && *req.RailwayProjectID != "" {
+			pid = *req.RailwayProjectID
+		} else {
+			projectID, _ := ctx.Get("railway_project_id")
+			pid, _ = projectID.(string)
+		}
 		go func(e store.Environment, projectID string) {
 			res, err := c.Railway.CreateEnvironment(ctx, railway.CreateEnvironmentInput{ProjectID: projectID, Name: e.Name})
 			if err != nil {
@@ -133,3 +142,33 @@ func (c *EnvironmentController) DestroyEnvironment(ctx *gin.Context) {
 }
 
 // status normalization moved to internal/status
+
+// ProvisionEnvironmentRequest is the payload to create a Railway environment in an existing project.
+type ProvisionEnvironmentRequest struct {
+	ProjectID string `json:"projectId"`
+	Name      string `json:"name"`
+	RequestID string `json:"requestId"`
+}
+
+type ProvisionEnvironmentResponse struct {
+	EnvironmentID string `json:"environmentId"`
+}
+
+// ProvisionEnvironment creates a new environment under an existing Railway project.
+func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
+	if c.Railway == nil {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
+		return
+	}
+	var req ProvisionEnvironmentRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	res, err := c.Railway.CreateEnvironment(ctx, railway.CreateEnvironmentInput{ProjectID: req.ProjectID, Name: req.Name})
+	if err != nil {
+		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, ProvisionEnvironmentResponse{EnvironmentID: res.EnvironmentID})
+}

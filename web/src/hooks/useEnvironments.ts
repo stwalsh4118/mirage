@@ -1,21 +1,18 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { destroyEnvironment, Environment } from "@/lib/api/environments";
+import { destroyEnvironment, Environment, listEnvironments } from "@/lib/api/environments";
 
 export const ENV_POLL_INTERVAL_MS = 5000 as const;
 
 export function useEnvironments() {
-  const placeholder: Environment[] = MOCK_ENVIRONMENTS;
-  // Temporarily use mock data only (no API call)
   return useQuery<Environment[]>({
     queryKey: ["environments"],
-    queryFn: async () => placeholder,
-    staleTime: Infinity,
-    retry: false,
+    queryFn: () => listEnvironments(),
+    staleTime: 0,
+    retry: 2,
     refetchOnWindowFocus: false,
-    refetchInterval: false,
-    initialData: placeholder,
+    refetchInterval: ENV_POLL_INTERVAL_MS,
   });
 }
 

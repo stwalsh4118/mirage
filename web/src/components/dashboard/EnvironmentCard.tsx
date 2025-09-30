@@ -28,8 +28,17 @@ function statusColor(status: Environment["status"]): string {
 }
 
 function typeBadge(type: Environment["type"]) {
-  if (type === "prod") return <Badge variant="default">Prod</Badge>;
-  return <Badge variant="secondary">Dev</Badge>;
+  switch (type) {
+    case "prod":
+      return <Badge variant="default">Prod</Badge>;
+    case "staging":
+      return <Badge variant="secondary">Staging</Badge>;
+    case "ephemeral":
+      return <Badge variant="secondary">Ephemeral</Badge>;
+    case "dev":
+    default:
+      return <Badge variant="secondary">Dev</Badge>;
+  }
 }
 
 export function EnvironmentCard({ env }: { env: Environment }) {
@@ -41,7 +50,7 @@ export function EnvironmentCard({ env }: { env: Environment }) {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <CardTitle className="text-base font-medium">{env.name}</CardTitle>
-            <Badge variant="secondary" className="text-[10px]">{env.type.toUpperCase()}</Badge>
+            <span className="text-[10px]">{typeBadge(env.type)}</span>
           </div>
           <StatusChip status={mapStatus(env.status)} />
         </div>

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -24,7 +25,12 @@ func Setup(environment string) {
 	}
 	zerolog.SetGlobalLevel(level)
 
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	if environment != "production" {
+		cw := zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: "15:04:05"}
+		log.Logger = zerolog.New(cw).With().Timestamp().Logger()
+	} else {
+		log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	}
 }
 
 // GinLogger returns a Gin middleware that logs requests using zerolog.
@@ -33,6 +39,14 @@ func GinLogger() gin.HandlerFunc {
 		start := time.Now()
 		path := c.Request.URL.Path
 		query := c.Request.URL.RawQuery
+
+		// Ensure request id exists and is propagated
+		reqID := c.GetHeader("X-Request-Id")
+		if reqID == "" {
+			reqID = uuid.NewString()
+			c.Request.Header.Set("X-Request-Id", reqID)
+		}
+		c.Writer.Header().Set("X-Request-Id", reqID)
 
 		c.Next()
 
@@ -45,11 +59,12 @@ func GinLogger() gin.HandlerFunc {
 			evt = log.Error()
 		}
 
+		evt.Str("request_id", reqID)
 		evt.Str("method", c.Request.Method)
 		evt.Str("path", path)
 		evt.Str("query", query)
 		evt.Int("status", status)
-		evt.Dur("latency_ms", latency)
+		evt.Float64("latency_ms", float64(latency)/float64(time.Millisecond))
 		evt.Int("bytes", size)
 		evt.Str("client_ip", c.ClientIP())
 		evt.Str("user_agent", c.Request.UserAgent())
