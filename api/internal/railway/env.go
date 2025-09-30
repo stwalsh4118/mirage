@@ -55,17 +55,14 @@ type DestroyEnvironmentInput struct {
 
 // DestroyEnvironment removes an environment.
 func (c *Client) DestroyEnvironment(ctx context.Context, in DestroyEnvironmentInput) error {
-	// TODO: Replace with actual mutation and variables once confirmed.
-	mutation := `mutation DeleteEnv($environmentId: ID!) {
-  deleteEnvironment(id: $environmentId) {
-    id
-  }
+	mutation := `mutation EnvironmentDelete($environmentId: String!) {
+  environmentDelete(id: $environmentId)
 }`
 	vars := map[string]any{
 		"environmentId": in.EnvironmentID,
 	}
 	var resp struct {
-		DeleteEnvironment struct{ ID string } `json:"deleteEnvironment"`
+		EnvironmentDelete bool `json:"environmentDelete"`
 	}
 	return c.execute(ctx, mutation, vars, &resp)
 }
