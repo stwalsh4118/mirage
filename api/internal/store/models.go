@@ -28,6 +28,13 @@ type Environment struct {
 	Services []Service `gorm:"foreignKey:EnvironmentID"`
 }
 
+type DeploymentType string
+
+const (
+	DeploymentTypeSourceRepo  DeploymentType = "source_repo"
+	DeploymentTypeDockerImage DeploymentType = "docker_image"
+)
+
 type Service struct {
 	ID               string    `gorm:"primaryKey;type:text"`
 	EnvironmentID    string    `gorm:"index;not null"`
@@ -37,6 +44,21 @@ type Service struct {
 	RailwayServiceID string    `gorm:"type:text"`
 	CreatedAt        time.Time `gorm:"index"`
 	UpdatedAt        time.Time
+
+	// Deployment configuration
+	DeploymentType DeploymentType `gorm:"type:text;default:'source_repo'"`
+
+	// Source repository fields (for source_repo deployment)
+	SourceRepo   string `gorm:"type:text"`
+	SourceBranch string `gorm:"type:text"`
+
+	// Docker image fields (for docker_image deployment)
+	DockerImage     string `gorm:"type:text"`
+	ImageRegistry   string `gorm:"type:text"`
+	ImageName       string `gorm:"type:text"`
+	ImageTag        string `gorm:"type:text"`
+	ImageDigest     string `gorm:"type:text"`
+	ImageAuthStored bool   `gorm:"default:false"` // Indicates if Railway has stored auth credentials
 }
 
 type Template struct {
