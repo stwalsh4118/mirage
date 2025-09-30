@@ -9,34 +9,21 @@ import Link from "next/link";
 
 export function EnvironmentList() {
   const { data = [] } = useEnvironments();
-  const { status, type, query, sortBy } = useDashboardStore();
+  const { query, sortBy } = useDashboardStore();
 
   let filtered = (data ?? []).filter((e) => {
-    if (type !== "any" && e.type !== type) return false;
-    if (status !== "all") {
-      if (status === "active" && e.status !== "active") return false;
-      if (status === "creating" && e.status !== "creating") return false;
-      if (status === "error" && e.status !== "error") return false;
-    }
     if (query && !e.name.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
 
-  const statusRank: Record<string, number> = { active: 0, creating: 1, destroying: 2, error: 3, unknown: 4 };
   filtered = filtered.slice().sort((a, b) => {
-    switch (sortBy) {
-      case "name":
-        return a.name.localeCompare(b.name);
-      case "status":
-        return (statusRank[a.status] ?? 99) - (statusRank[b.status] ?? 99);
-      case "created":
-      case "updated":
-      default: {
-        const ad = Date.parse(a.createdAt);
-        const bd = Date.parse(b.createdAt);
-        return bd - ad;
-      }
+    if (sortBy === "name") {
+      return a.name.localeCompare(b.name);
     }
+    // Default: sort by created date (newest first)
+    const ad = Date.parse(a.createdAt);
+    const bd = Date.parse(b.createdAt);
+    return bd - ad;
   });
 
   return (

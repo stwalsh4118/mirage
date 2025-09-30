@@ -5,27 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Environment } from "@/lib/api/environments";
-import { useDestroyEnvironment } from "@/hooks/useEnvironments";
 import { MoreHorizontal } from "lucide-react";
 import { StatusChip } from "./StatusChip";
 import { Pill } from "./Pill";
-
-function statusColor(status: Environment["status"]): string {
-  switch (status) {
-    case "active":
-      return "text-green-700 dark:text-green-300";
-    case "creating":
-      return "text-amber-700 dark:text-amber-300";
-    case "destroying":
-      return "text-orange-700 dark:text-orange-300";
-    case "error":
-      return "text-red-700 dark:text-red-300";
-    default:
-      return "text-foreground/70";
-  }
-}
 
 function typeBadge(type: Environment["type"]) {
   switch (type) {
@@ -42,8 +25,6 @@ function typeBadge(type: Environment["type"]) {
 }
 
 export function EnvironmentCard({ env }: { env: Environment }) {
-  const destroy = useDestroyEnvironment();
-
   return (
     <Card className="glass grain transition-all duration-200 hover:translate-y-[-1px] hover:scale-[1.01]">
       <CardHeader className="flex flex-row items-start justify-between gap-2">
