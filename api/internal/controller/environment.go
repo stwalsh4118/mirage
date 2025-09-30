@@ -44,6 +44,7 @@ func (c *EnvironmentController) RegisterRoutes(r *gin.RouterGroup) {
 	// railway proxy helpers
 	r.GET("/railway/projects", c.ListRailwayProjects)
 	r.GET("/railway/project/:id", c.GetRailwayProject)
+	r.DELETE("/railway/environment/:id", c.DeleteRailwayEnvironment)
 	// provisioning endpoints
 	r.POST("/provision/project", c.ProvisionProject)
 	r.POST("/provision/environment", c.ProvisionEnvironment)

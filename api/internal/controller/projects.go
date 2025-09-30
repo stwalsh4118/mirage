@@ -176,3 +176,25 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, ProvisionProjectResponse{ProjectID: res.ProjectID, BaseEnvironmentID: res.BaseEnvironmentID, Name: res.Name})
 }
+
+// DeleteRailwayEnvironment deletes a Railway environment by its Railway environment ID.
+func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
+	if c.Railway == nil {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
+		return
+	}
+	railwayEnvID := ctx.Param("id")
+	if railwayEnvID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "environment id required"})
+		return
+	}
+
+	log.Info().Str("railway_env_id", railwayEnvID).Msg("deleting railway environment")
+	if err := c.Railway.DestroyEnvironment(ctx, railway.DestroyEnvironmentInput{EnvironmentID: railwayEnvID}); err != nil {
+		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("railway delete environment failed")
+		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.Status(http.StatusNoContent)
+}
