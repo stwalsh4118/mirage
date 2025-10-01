@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useWizardStore } from "@/store/wizard";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -38,11 +38,22 @@ export function DockerImageForm() {
     setField 
   } = useWizardStore();
 
-  // Determine current registry preset
-  const registryPreset = useMemo((): RegistryPreset => {
+  // Use local state to track selected preset
+  const [selectedPreset, setSelectedPreset] = useState<RegistryPreset>(() => {
     if (!imageRegistry || imageRegistry === "docker.io") return "docker.io";
     if (imageRegistry === "ghcr.io") return "ghcr.io";
     return "custom";
+  });
+
+  // Sync selectedPreset when imageRegistry changes externally
+  useEffect(() => {
+    if (!imageRegistry || imageRegistry === "docker.io") {
+      setSelectedPreset("docker.io");
+    } else if (imageRegistry === "ghcr.io") {
+      setSelectedPreset("ghcr.io");
+    } else {
+      setSelectedPreset("custom");
+    }
   }, [imageRegistry]);
 
   // Generate full image reference preview
@@ -72,13 +83,15 @@ export function DockerImageForm() {
   }, [imageName]);
 
   const handleRegistryPresetChange = (preset: string) => {
+    setSelectedPreset(preset as RegistryPreset);
+    
     if (preset === "docker.io") {
       setField("imageRegistry", "");
     } else if (preset === "ghcr.io") {
       setField("imageRegistry", "ghcr.io");
     } else {
-      // Custom - keep current value or clear if it was a preset
-      if (imageRegistry === "" || imageRegistry === "ghcr.io") {
+      // Custom - keep current value if it's already custom, otherwise clear
+      if (imageRegistry === "" || imageRegistry === "docker.io" || imageRegistry === "ghcr.io") {
         setField("imageRegistry", "");
       }
     }
@@ -120,7 +133,7 @@ export function DockerImageForm() {
       <div className="space-y-2">
         <Label htmlFor="registry">Registry</Label>
         <Select 
-          value={registryPreset} 
+          value={selectedPreset} 
           onValueChange={handleRegistryPresetChange}
         >
           <SelectTrigger id="registry" className="bg-card">
@@ -134,11 +147,11 @@ export function DockerImageForm() {
             ))}
           </SelectContent>
         </Select>
-        {registryPreset === "custom" && (
+        {selectedPreset === "custom" && (
           <Input
             placeholder="registry.example.com"
             className="bg-card mt-2"
-            value={imageRegistry}
+            value={imageRegistry === "docker.io" ? "" : imageRegistry}
             onChange={(e) => setField("imageRegistry", e.target.value)}
             spellCheck={false}
           />
