@@ -88,27 +88,40 @@ export function useImportRailwayEnvironments() {
   const qc = useQueryClient();
   return useMutation<ImportRailwayEnvsResponse, Error, ImportRailwayEnvsRequest>({
     mutationFn: (body) => importRailwayEnvironments(body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["environments"] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["environments"] });
     },
   });
 }
 
 export function useProvisionProject() {
+  const qc = useQueryClient();
   return useMutation<ProvisionProjectResponse, Error, ProvisionProjectRequest>({
     mutationFn: (body) => provisionProject(body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+      await qc.invalidateQueries({ queryKey: ["railway-projects"] });
+    },
   });
 }
 
 export function useProvisionEnvironment() {
+  const qc = useQueryClient();
   return useMutation<ProvisionEnvironmentResponse, Error, ProvisionEnvironmentRequest>({
     mutationFn: (body) => provisionEnvironment(body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+    },
   });
 }
 
 export function useProvisionServices() {
+  const qc = useQueryClient();
   return useMutation<ProvisionServicesResponse, Error, ProvisionServicesRequest>({
     mutationFn: (body) => provisionServices(body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+    },
   });
 }
 
@@ -116,8 +129,8 @@ export function useDeleteRailwayEnvironment() {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: (railwayEnvironmentId: string) => deleteRailwayEnvironment(railwayEnvironmentId),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
     },
   });
 }
@@ -126,9 +139,9 @@ export function useDeleteRailwayProject() {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: (projectId: string) => deleteRailwayProject(projectId),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
-      void qc.invalidateQueries({ queryKey: ["railway-projects"] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+      await qc.invalidateQueries({ queryKey: ["railway-projects"] });
     },
   });
 }
