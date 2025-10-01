@@ -15,6 +15,19 @@ export interface Service {
   name: string
   status: "running" | "stopped" | "error"
   type: string
+  // Deployment configuration (optional, defaults to source_repo)
+  deploymentType?: "source_repo" | "docker_image"
+  sourceRepo?: string
+  sourceBranch?: string
+  dockerImage?: string
+  imageRegistry?: string
+  imageTag?: string
+  // Railway service instance details (optional)
+  buildCommand?: string | null
+  builder?: string | null
+  startCommand?: string | null
+  rootDirectory?: string | null
+  region?: string | null
 }
 
 export interface Environment {
