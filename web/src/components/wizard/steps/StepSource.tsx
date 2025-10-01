@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { DeploymentSourceSelector } from "../DeploymentSourceSelector";
+import { DockerImageForm } from "../DockerImageForm";
 
 export function StepSource() {
-  const { deploymentSource, repositoryUrl, repositoryBranch, imageName, setField } = useWizardStore();
+  const { deploymentSource, repositoryUrl, repositoryBranch, setField } = useWizardStore();
   const repoProvided = repositoryUrl.trim().length > 0;
   const branchMissing = repoProvided && repositoryBranch.trim().length === 0;
-  const imageProvided = imageName.trim().length > 0;
 
   return (
     <div className="space-y-6">
@@ -65,33 +65,7 @@ export function StepSource() {
           )}
         </>
       ) : (
-        <>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="imageName">Image Name</Label>
-              <Input
-                id="imageName"
-                className="bg-card"
-                placeholder="nginx or org/app"
-                value={imageName}
-                onChange={(e) => setField("imageName", e.target.value)}
-                spellCheck={false}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the Docker image name (e.g., "nginx" for Docker Hub or "ghcr.io/user/app" for other registries)
-              </p>
-            </div>
-          </div>
-
-          {!imageProvided && (
-            <Alert className="bg-muted/30 border-border/60">
-              <AlertTitle>Image Required</AlertTitle>
-              <AlertDescription>
-                Please provide a Docker image name to deploy. You can configure additional settings like registry, tag, and environment variables in the next step.
-              </AlertDescription>
-            </Alert>
-          )}
-        </>
+        <DockerImageForm />
       )}
     </div>
   );
