@@ -4,9 +4,14 @@ import { Button } from "@/components/ui/button";
 import { useWizardStore, WIZARD_STEPS_ORDER } from "@/store/wizard";
 
 export function WizardFooter(props: { onConfirm?: () => void; isSubmitting?: boolean; canProceed?: boolean }) {
-  const { goBack, goNext, currentStepIndex, projectSelectionMode, existingProjectId, newProjectName, repositoryUrl, repositoryBranch, environmentName } = useWizardStore();
+  const { goBack, goNext, currentStepIndex, projectSelectionMode, existingProjectId, newProjectName, deploymentSource, repositoryUrl, repositoryBranch, imageName, environmentName } = useWizardStore();
   const step0Valid = projectSelectionMode === "existing" ? Boolean(existingProjectId) : newProjectName.trim().length > 0;
-  const step1Valid = repositoryUrl.trim().length === 0 || (repositoryUrl.trim().length > 0 && repositoryBranch.trim().length > 0);
+  
+  // Step 1 validation: Either valid repo OR valid image
+  const repoValid = repositoryUrl.trim().length === 0 || (repositoryUrl.trim().length > 0 && repositoryBranch.trim().length > 0);
+  const imageValid = imageName.trim().length > 0;
+  const step1Valid = deploymentSource === "repository" ? repoValid : imageValid;
+  
   const step2Valid = environmentName.trim().length > 0;
   const last = currentStepIndex >= WIZARD_STEPS_ORDER.length - 1;
   return (

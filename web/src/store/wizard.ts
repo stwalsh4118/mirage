@@ -51,8 +51,12 @@ export type WizardState = {
   defaultEnvironmentName: string;
 
   // Step 1: Source
+  deploymentSource: "repository" | "image";
   repositoryUrl: string;
   repositoryBranch: string;
+  imageName: string;
+  imageRegistry: string;
+  imageTag: string;
 
   // Step 2: Config
   environmentName: string;
@@ -106,8 +110,12 @@ const initialState: Omit<WizardState,
   newProjectName: "",
   defaultEnvironmentName: "production",
 
+  deploymentSource: "repository",
   repositoryUrl: "",
   repositoryBranch: "main",
+  imageName: "",
+  imageRegistry: "",
+  imageTag: "latest",
 
   environmentName: "",
   templateKind: "dev",

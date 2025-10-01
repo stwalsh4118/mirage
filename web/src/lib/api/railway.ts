@@ -106,7 +106,19 @@ export function provisionEnvironment(body: ProvisionEnvironmentRequest): Promise
 export type ProvisionServicesRequest = {
   projectId: string;
   environmentId: string;
-  services: { name: string; repo?: string; branch?: string }[];
+  services: {
+    name: string;
+    // Repository-based deployment
+    repo?: string;
+    branch?: string;
+    // Image-based deployment
+    imageName?: string;
+    imageRegistry?: string;
+    imageTag?: string;
+    environmentVariables?: Record<string, string>;
+    registryUsername?: string;
+    registryPassword?: string;
+  }[];
   requestId: string;
 };
 

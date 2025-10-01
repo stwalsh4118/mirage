@@ -118,14 +118,37 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         updateServiceProgress(i, { status: "running" });
 
         try {
-          const repo = state.repositoryUrl?.trim() || undefined;
-          const branch = state.repositoryBranch?.trim() || undefined;
+          // Build service config based on deployment source
+          const serviceConfig: {
+            name: string;
+            repo?: string;
+            branch?: string;
+            imageName?: string;
+            imageRegistry?: string;
+            imageTag?: string;
+          } = { name: service.name };
+          
+          if (state.deploymentSource === "repository") {
+            const repo = state.repositoryUrl?.trim() || undefined;
+            const branch = state.repositoryBranch?.trim() || undefined;
+            serviceConfig.repo = repo;
+            serviceConfig.branch = branch;
+          } else {
+            // Image-based deployment
+            const imageName = state.imageName?.trim() || undefined;
+            const imageRegistry = state.imageRegistry?.trim() || undefined;
+            const imageTag = state.imageTag?.trim() || undefined;
+            
+            serviceConfig.imageName = imageName;
+            if (imageRegistry) serviceConfig.imageRegistry = imageRegistry;
+            if (imageTag) serviceConfig.imageTag = imageTag;
+          }
 
           const serviceResult = await provisionServices.mutateAsync({
             requestId: requestId!,
             projectId: finalProjectId,
             environmentId: finalEnvironmentId,
-            services: [{ name: service.name, repo, branch }],
+            services: [serviceConfig],
           });
 
           createdServiceIds.push(...serviceResult.serviceIds);
