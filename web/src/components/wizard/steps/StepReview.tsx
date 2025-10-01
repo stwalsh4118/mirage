@@ -10,8 +10,15 @@ export function StepReview() {
     existingProjectId,
     existingProjectName,
     newProjectName,
+    deploymentSource,
     repositoryUrl,
     repositoryBranch,
+    imageName,
+    imageRegistry,
+    imageTag,
+    imageDigest,
+    useDigest,
+    imagePorts,
     environmentName,
     templateKind,
     ttlHours,
@@ -23,6 +30,18 @@ export function StepReview() {
   const resolvedProjectName = projectSelectionMode === "existing"
     ? (projects.find((p) => p.id === existingProjectId)?.name || existingProjectName || existingProjectId || "(none)")
     : (newProjectName || "(new project)");
+
+  // Build full image reference for display
+  const fullImageReference = (() => {
+    if (deploymentSource !== "image" || !imageName) return null;
+    const registry = imageRegistry || "docker.io";
+    const registryPrefix = registry === "docker.io" ? "" : `${registry}/`;
+    if (useDigest && imageDigest) {
+      return `${registryPrefix}${imageName}@${imageDigest}`;
+    }
+    const tag = imageTag || "latest";
+    return `${registryPrefix}${imageName}:${tag}`;
+  })();
 
   return (
     <div className="space-y-6">
@@ -37,9 +56,21 @@ export function StepReview() {
                 <div className="font-medium">{resolvedProjectName}</div>
               </div>
               <div>
-                <div className="text-muted-foreground">Source</div>
-                <div className="font-medium">{repositoryUrl || "(none)"}{repositoryBranch ? `@${repositoryBranch}` : ""}</div>
+                <div className="text-muted-foreground">
+                  {deploymentSource === "repository" ? "Source Repository" : "Docker Image"}
+                </div>
+                <div className="font-medium break-all">
+                  {deploymentSource === "repository" 
+                    ? `${repositoryUrl || "(none)"}${repositoryBranch ? `@${repositoryBranch}` : ""}` 
+                    : fullImageReference || "(none)"}
+                </div>
               </div>
+              {deploymentSource === "image" && imagePorts.length > 0 && (
+                <div>
+                  <div className="text-muted-foreground">Exposed Ports</div>
+                  <div className="font-medium">{imagePorts.join(", ")}</div>
+                </div>
+              )}
               <div>
                 <div className="text-muted-foreground">Environment</div>
                 <div className="font-medium">{environmentName || "(none)"}</div>
