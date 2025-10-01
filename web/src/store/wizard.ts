@@ -57,6 +57,9 @@ export type WizardState = {
   imageName: string;
   imageRegistry: string;
   imageTag: string;
+  imageDigest: string;
+  useDigest: boolean;
+  imagePorts: number[];
 
   // Step 2: Config
   environmentName: string;
@@ -116,6 +119,9 @@ const initialState: Omit<WizardState,
   imageName: "",
   imageRegistry: "",
   imageTag: "latest",
+  imageDigest: "",
+  useDigest: false,
+  imagePorts: [],
 
   environmentName: "",
   templateKind: "dev",
