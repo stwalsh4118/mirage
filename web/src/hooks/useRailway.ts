@@ -17,70 +17,12 @@ export function useRailwayProjects(names: string[]) {
 }
 
 export function useRailwayProjectsDetails(names?: string[]) {
-  const includeDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo");
   return useQuery<RailwayProjectDetails[]>({
-    queryKey: ["railway-projects-details", (names ?? []).slice().sort().join(","), includeDemo ? "demo" : "nodemo"],
+    queryKey: ["railway-projects-details", (names ?? []).slice().sort().join(",")],
     queryFn: () => listRailwayProjectsDetails(names),
     staleTime: RAILWAY_POLL_INTERVAL_MS,
     refetchInterval: RAILWAY_POLL_INTERVAL_MS,
     refetchOnWindowFocus: false,
-    select: (data) => {
-      if (!includeDemo) return data;
-      const demo: RailwayProjectDetails = {
-        id: "starlight-orchestra",
-        name: "Starlight Orchestra",
-        services: [
-          { id: "api-gateway", name: "api-gateway" },
-          { id: "web-app", name: "web-app" },
-          { id: "worker-bus", name: "worker-bus" },
-          { id: "postgres", name: "postgres" },
-          { id: "redis", name: "redis" },
-          { id: "vector-db", name: "vector-db" },
-          { id: "image-cdn", name: "image-cdn" },
-        ],
-        plugins: [
-          { id: "grafana", name: "grafana" },
-          { id: "sentry", name: "sentry" },
-          { id: "datadog", name: "datadog" },
-          { id: "stripe", name: "stripe" },
-        ],
-        environments: [
-          {
-            id: "production",
-            name: "production",
-            services: [
-              { id: "web-app", name: "web-app" },
-              { id: "api-gateway", name: "api-gateway" },
-              { id: "postgres", name: "postgres" },
-              { id: "redis", name: "redis" },
-              { id: "image-cdn", name: "image-cdn" },
-            ],
-          },
-          {
-            id: "staging",
-            name: "staging",
-            services: [
-              { id: "web-app", name: "web-app" },
-              { id: "api-gateway", name: "api-gateway" },
-              { id: "postgres", name: "postgres" },
-              { id: "vector-db", name: "vector-db" },
-            ],
-          },
-          {
-            id: "preview",
-            name: "preview",
-            services: [
-              { id: "web-app", name: "web-app" },
-              { id: "worker-bus", name: "worker-bus" },
-            ],
-          },
-        ],
-      };
-      // Put demo first for visibility
-      const existing = data ?? [];
-      const withoutDup = existing.filter((p) => p.id !== demo.id);
-      return [demo, ...withoutDup];
-    },
   });
 }
 
