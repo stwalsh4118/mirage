@@ -53,7 +53,27 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         ...e,
         status: "operational" as const,
         url: `${project.name}-${e.name}.mirage.dev`,
-        services: e.services.map((s) => ({ id: s.id, name: s.name, status: "running", type: "web" } as UIService)),
+        services: e.services.map((s) => {
+          // Determine deployment type from source field
+          const deploymentType = s.source?.image ? "docker_image" : "source_repo"
+          
+          return {
+            id: s.id, 
+            name: s.serviceName, 
+            status: "running", 
+            type: "web",
+            // Deployment type and configuration
+            deploymentType,
+            sourceRepo: s.source?.repo,
+            dockerImage: s.source?.image,
+            // Pass through detailed service instance fields
+            buildCommand: s.buildCommand,
+            builder: s.builder,
+            startCommand: s.startCommand,
+            rootDirectory: s.rootDirectory,
+            region: s.region,
+          } as UIService
+        }),
       }))
     }, [project])
 
