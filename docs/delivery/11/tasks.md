@@ -14,7 +14,7 @@ This document lists all tasks associated with PBI 11.
 | 11-4 | [Extend service provisioning API to support image-based deployments](./11-4.md) | Done | Extend existing endpoint to accept both repo and image deployment types |
 | 11-5 | [Add deployment source selection to wizard UI](./11-5.md) | Done | Add radio toggle for source repo vs Docker image in wizard |
 | 11-6 | [Implement Docker image configuration form](./11-6.md) | Done | Build UI for registry, image, tag, ports, and env var config |
-| 11-7 | [Update service cards to display deployment type](./11-7.md) | Proposed | Add badges and metadata to show image-based vs source deployments |
+| 11-7 | [Update service cards to display deployment type](./11-7.md) | Done | Add badges and metadata to show image-based vs source deployments |
 | 11-8 | [E2E CoS Test for PBI 11](./11-8.md) | Proposed | Validate end-to-end Docker image deployment functionality |
 
 
