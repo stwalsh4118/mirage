@@ -14,10 +14,68 @@ type ProjectDTO struct {
 	Name string `json:"name"`
 }
 
+type ServiceSourceDTO struct {
+	Image *string `json:"image,omitempty"`
+	Repo  *string `json:"repo,omitempty"`
+}
+
+type LatestDeploymentDTO struct {
+	CanRedeploy             *bool          `json:"canRedeploy,omitempty"`
+	CanRollback             *bool          `json:"canRollback,omitempty"`
+	CreatedAt               *string        `json:"createdAt,omitempty"`
+	DeploymentStopped       *bool          `json:"deploymentStopped,omitempty"`
+	EnvironmentID           *string        `json:"environmentId,omitempty"`
+	ID                      *string        `json:"id,omitempty"`
+	Meta                    map[string]any `json:"meta,omitempty"`
+	ProjectID               *string        `json:"projectId,omitempty"`
+	ServiceID               *string        `json:"serviceId,omitempty"`
+	SnapshotID              *string        `json:"snapshotId,omitempty"`
+	StaticURL               *string        `json:"staticUrl,omitempty"`
+	Status                  *string        `json:"status,omitempty"`
+	StatusUpdatedAt         *string        `json:"statusUpdatedAt,omitempty"`
+	SuggestAddServiceDomain *bool          `json:"suggestAddServiceDomain,omitempty"`
+	UpdatedAt               *string        `json:"updatedAt,omitempty"`
+	URL                     *string        `json:"url,omitempty"`
+}
+
+type ServiceInstanceDTO struct {
+	ID                      string               `json:"id"`
+	ServiceID               string               `json:"serviceId"`
+	ServiceName             string               `json:"serviceName"`
+	EnvironmentID           string               `json:"environmentId"`
+	BuildCommand            *string              `json:"buildCommand,omitempty"`
+	Builder                 *string              `json:"builder,omitempty"`
+	CreatedAt               *string              `json:"createdAt,omitempty"`
+	CronSchedule            *string              `json:"cronSchedule,omitempty"`
+	DeletedAt               *string              `json:"deletedAt,omitempty"`
+	DrainingSeconds         *int                 `json:"drainingSeconds,omitempty"`
+	HealthcheckPath         *string              `json:"healthcheckPath,omitempty"`
+	HealthcheckTimeout      *int                 `json:"healthcheckTimeout,omitempty"`
+	IsUpdatable             *bool                `json:"isUpdatable,omitempty"`
+	NextCronRunAt           *string              `json:"nextCronRunAt,omitempty"`
+	NixpacksPlan            *string              `json:"nixpacksPlan,omitempty"`
+	NumReplicas             *int                 `json:"numReplicas,omitempty"`
+	OverlapSeconds          *int                 `json:"overlapSeconds,omitempty"`
+	PreDeployCommand        *string              `json:"preDeployCommand,omitempty"`
+	RailpackInfo            *string              `json:"railpackInfo,omitempty"`
+	RailwayConfigFile       *string              `json:"railwayConfigFile,omitempty"`
+	Region                  *string              `json:"region,omitempty"`
+	RestartPolicyMaxRetries *int                 `json:"restartPolicyMaxRetries,omitempty"`
+	RestartPolicyType       *string              `json:"restartPolicyType,omitempty"`
+	RootDirectory           *string              `json:"rootDirectory,omitempty"`
+	SleepApplication        *bool                `json:"sleepApplication,omitempty"`
+	StartCommand            *string              `json:"startCommand,omitempty"`
+	UpdatedAt               *string              `json:"updatedAt,omitempty"`
+	UpstreamURL             *string              `json:"upstreamUrl,omitempty"`
+	WatchPatterns           []string             `json:"watchPatterns,omitempty"`
+	Source                  *ServiceSourceDTO    `json:"source,omitempty"`
+	LatestDeployment        *LatestDeploymentDTO `json:"latestDeployment,omitempty"`
+}
+
 type EnvWithServicesDTO struct {
-	ID       string       `json:"id"`
-	Name     string       `json:"name"`
-	Services []ProjectDTO `json:"services"`
+	ID       string               `json:"id"`
+	Name     string               `json:"name"`
+	Services []ServiceInstanceDTO `json:"services"`
 }
 
 type ProjectDetailsDTO struct {
@@ -69,9 +127,66 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 				pd.Plugins = append(pd.Plugins, ProjectDTO{ID: g.ID, Name: g.Name})
 			}
 			for _, e := range p.Environments {
-				env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ProjectDTO{}}
+				env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ServiceInstanceDTO{}}
 				for _, es := range e.Services {
-					env.Services = append(env.Services, ProjectDTO{ID: es.ID, Name: es.Name})
+					dto := ServiceInstanceDTO{
+						ID:                      es.ID,
+						ServiceID:               es.ServiceID,
+						ServiceName:             es.ServiceName,
+						EnvironmentID:           es.EnvironmentID,
+						BuildCommand:            es.BuildCommand,
+						Builder:                 es.Builder,
+						CreatedAt:               es.CreatedAt,
+						CronSchedule:            es.CronSchedule,
+						DeletedAt:               es.DeletedAt,
+						DrainingSeconds:         es.DrainingSeconds,
+						HealthcheckPath:         es.HealthcheckPath,
+						HealthcheckTimeout:      es.HealthcheckTimeout,
+						IsUpdatable:             es.IsUpdatable,
+						NextCronRunAt:           es.NextCronRunAt,
+						NixpacksPlan:            es.NixpacksPlan,
+						NumReplicas:             es.NumReplicas,
+						OverlapSeconds:          es.OverlapSeconds,
+						PreDeployCommand:        es.PreDeployCommand,
+						RailpackInfo:            es.RailpackInfo,
+						RailwayConfigFile:       es.RailwayConfigFile,
+						Region:                  es.Region,
+						RestartPolicyMaxRetries: es.RestartPolicyMaxRetries,
+						RestartPolicyType:       es.RestartPolicyType,
+						RootDirectory:           es.RootDirectory,
+						SleepApplication:        es.SleepApplication,
+						StartCommand:            es.StartCommand,
+						UpdatedAt:               es.UpdatedAt,
+						UpstreamURL:             es.UpstreamURL,
+						WatchPatterns:           es.WatchPatterns,
+					}
+					if es.Source != nil {
+						dto.Source = &ServiceSourceDTO{
+							Image: es.Source.Image,
+							Repo:  es.Source.Repo,
+						}
+					}
+					if es.LatestDeployment != nil {
+						dto.LatestDeployment = &LatestDeploymentDTO{
+							CanRedeploy:             es.LatestDeployment.CanRedeploy,
+							CanRollback:             es.LatestDeployment.CanRollback,
+							CreatedAt:               es.LatestDeployment.CreatedAt,
+							DeploymentStopped:       es.LatestDeployment.DeploymentStopped,
+							EnvironmentID:           es.LatestDeployment.EnvironmentID,
+							ID:                      es.LatestDeployment.ID,
+							Meta:                    es.LatestDeployment.Meta,
+							ProjectID:               es.LatestDeployment.ProjectID,
+							ServiceID:               es.LatestDeployment.ServiceID,
+							SnapshotID:              es.LatestDeployment.SnapshotID,
+							StaticURL:               es.LatestDeployment.StaticURL,
+							Status:                  es.LatestDeployment.Status,
+							StatusUpdatedAt:         es.LatestDeployment.StatusUpdatedAt,
+							SuggestAddServiceDomain: es.LatestDeployment.SuggestAddServiceDomain,
+							UpdatedAt:               es.LatestDeployment.UpdatedAt,
+							URL:                     es.LatestDeployment.URL,
+						}
+					}
+					env.Services = append(env.Services, dto)
 				}
 				pd.Environments = append(pd.Environments, env)
 			}
@@ -125,9 +240,66 @@ func (c *EnvironmentController) GetRailwayProject(ctx *gin.Context) {
 			pd.Plugins = append(pd.Plugins, ProjectDTO{ID: g.ID, Name: g.Name})
 		}
 		for _, e := range p.Environments {
-			env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ProjectDTO{}}
+			env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ServiceInstanceDTO{}}
 			for _, es := range e.Services {
-				env.Services = append(env.Services, ProjectDTO{ID: es.ID, Name: es.Name})
+				dto := ServiceInstanceDTO{
+					ID:                      es.ID,
+					ServiceID:               es.ServiceID,
+					ServiceName:             es.ServiceName,
+					EnvironmentID:           es.EnvironmentID,
+					BuildCommand:            es.BuildCommand,
+					Builder:                 es.Builder,
+					CreatedAt:               es.CreatedAt,
+					CronSchedule:            es.CronSchedule,
+					DeletedAt:               es.DeletedAt,
+					DrainingSeconds:         es.DrainingSeconds,
+					HealthcheckPath:         es.HealthcheckPath,
+					HealthcheckTimeout:      es.HealthcheckTimeout,
+					IsUpdatable:             es.IsUpdatable,
+					NextCronRunAt:           es.NextCronRunAt,
+					NixpacksPlan:            es.NixpacksPlan,
+					NumReplicas:             es.NumReplicas,
+					OverlapSeconds:          es.OverlapSeconds,
+					PreDeployCommand:        es.PreDeployCommand,
+					RailpackInfo:            es.RailpackInfo,
+					RailwayConfigFile:       es.RailwayConfigFile,
+					Region:                  es.Region,
+					RestartPolicyMaxRetries: es.RestartPolicyMaxRetries,
+					RestartPolicyType:       es.RestartPolicyType,
+					RootDirectory:           es.RootDirectory,
+					SleepApplication:        es.SleepApplication,
+					StartCommand:            es.StartCommand,
+					UpdatedAt:               es.UpdatedAt,
+					UpstreamURL:             es.UpstreamURL,
+					WatchPatterns:           es.WatchPatterns,
+				}
+				if es.Source != nil {
+					dto.Source = &ServiceSourceDTO{
+						Image: es.Source.Image,
+						Repo:  es.Source.Repo,
+					}
+				}
+				if es.LatestDeployment != nil {
+					dto.LatestDeployment = &LatestDeploymentDTO{
+						CanRedeploy:             es.LatestDeployment.CanRedeploy,
+						CanRollback:             es.LatestDeployment.CanRollback,
+						CreatedAt:               es.LatestDeployment.CreatedAt,
+						DeploymentStopped:       es.LatestDeployment.DeploymentStopped,
+						EnvironmentID:           es.LatestDeployment.EnvironmentID,
+						ID:                      es.LatestDeployment.ID,
+						Meta:                    es.LatestDeployment.Meta,
+						ProjectID:               es.LatestDeployment.ProjectID,
+						ServiceID:               es.LatestDeployment.ServiceID,
+						SnapshotID:              es.LatestDeployment.SnapshotID,
+						StaticURL:               es.LatestDeployment.StaticURL,
+						Status:                  es.LatestDeployment.Status,
+						StatusUpdatedAt:         es.LatestDeployment.StatusUpdatedAt,
+						SuggestAddServiceDomain: es.LatestDeployment.SuggestAddServiceDomain,
+						UpdatedAt:               es.LatestDeployment.UpdatedAt,
+						URL:                     es.LatestDeployment.URL,
+					}
+				}
+				env.Services = append(env.Services, dto)
 			}
 			pd.Environments = append(pd.Environments, env)
 		}

@@ -2,10 +2,69 @@ import { fetchJSON } from '@/lib/api';
 
 export type RailwayProject = { id: string; name: string };
 export type RailwayProjectItem = { id: string; name: string };
+
+export type ServiceSource = {
+  image?: string | null;
+  repo?: string | null;
+};
+
+export type LatestDeployment = {
+  canRedeploy?: boolean | null;
+  canRollback?: boolean | null;
+  createdAt?: string | null;
+  deploymentStopped?: boolean | null;
+  environmentId?: string | null;
+  id?: string | null;
+  meta?: Record<string, unknown> | null;
+  projectId?: string | null;
+  serviceId?: string | null;
+  snapshotId?: string | null;
+  staticUrl?: string | null;
+  status?: string | null;
+  statusUpdatedAt?: string | null;
+  suggestAddServiceDomain?: boolean | null;
+  updatedAt?: string | null;
+  url?: string | null;
+};
+
+export type RailwayServiceInstance = {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  environmentId: string;
+  buildCommand?: string | null;
+  builder?: string | null;
+  createdAt?: string | null;
+  cronSchedule?: string | null;
+  deletedAt?: string | null;
+  drainingSeconds?: number | null;
+  healthcheckPath?: string | null;
+  healthcheckTimeout?: number | null;
+  isUpdatable?: boolean | null;
+  nextCronRunAt?: string | null;
+  nixpacksPlan?: string | null;
+  numReplicas?: number | null;
+  overlapSeconds?: number | null;
+  preDeployCommand?: string | null;
+  railpackInfo?: string | null;
+  railwayConfigFile?: string | null;
+  region?: string | null;
+  restartPolicyMaxRetries?: number | null;
+  restartPolicyType?: string | null;
+  rootDirectory?: string | null;
+  sleepApplication?: boolean | null;
+  startCommand?: string | null;
+  updatedAt?: string | null;
+  upstreamUrl?: string | null;
+  watchPatterns?: string[];
+  source?: ServiceSource;
+  latestDeployment?: LatestDeployment;
+};
+
 export type RailwayEnvironmentWithServices = {
   id: string;
   name: string;
-  services: RailwayProjectItem[];
+  services: RailwayServiceInstance[];
 };
 
 export type RailwayProjectDetails = {
