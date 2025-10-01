@@ -72,7 +72,7 @@ export function RailwayEnvironmentCard({ env, href }: { env: RailwayEnvironmentW
         {serviceCount > 0 && (
           <div className="flex flex-wrap gap-2 text-[11px]">
             {env.services!.slice(0, 4).map((s) => (
-              <Pill key={s.id} color="blue">{s.name}</Pill>
+              <Pill key={s.id} color="blue">{s.serviceName}</Pill>
             ))}
             {env.services!.length > 4 && (
               <Pill color="neutral">+{env.services!.length - 4} more</Pill>
