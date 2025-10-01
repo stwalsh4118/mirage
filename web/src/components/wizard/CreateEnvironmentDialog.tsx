@@ -126,6 +126,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
             imageName?: string;
             imageRegistry?: string;
             imageTag?: string;
+            ports?: number[];
           } = { name: service.name };
           
           if (state.deploymentSource === "repository") {
@@ -138,10 +139,12 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
             const imageName = state.imageName?.trim() || undefined;
             const imageRegistry = state.imageRegistry?.trim() || undefined;
             const imageTag = state.imageTag?.trim() || undefined;
+            const ports = state.imagePorts && state.imagePorts.length > 0 ? state.imagePorts : undefined;
             
             serviceConfig.imageName = imageName;
             if (imageRegistry) serviceConfig.imageRegistry = imageRegistry;
             if (imageTag) serviceConfig.imageTag = imageTag;
+            if (ports) serviceConfig.ports = ports;
           }
 
           const serviceResult = await provisionServices.mutateAsync({
