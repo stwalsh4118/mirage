@@ -107,5 +107,15 @@ Many teams structure their monorepos with per-service Dockerfiles (e.g., `servic
 6. How do we handle monorepos with 50+ services?
 
 ## Related Tasks
-Tasks will be created once this PBI moves to "Agreed" status.
+[View Task List](./tasks.md)
+
+| Task ID | Description | Status |
+|---------|-------------|--------|
+| 12-1 | Research Railway API for service variables and Dockerfile path configuration | Proposed |
+| 12-2 | Implement backend Dockerfile scanner | Proposed |
+| 12-3 | Extend Railway service creation to support Dockerfile paths | Proposed |
+| 12-4 | Create Dockerfile discovery API endpoint | Proposed |
+| 12-5 | Build frontend Dockerfile discovery UI component | Proposed |
+| 12-6 | Integrate Dockerfile discovery into service creation wizard | Proposed |
+| 12-7 | E2E CoS Test | Proposed |
 
