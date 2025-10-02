@@ -6,6 +6,9 @@ ARG BUILD_ENV=production
 
 WORKDIR /app
 
+# Install build dependencies for CGO (required for go-sqlite3)
+RUN apk add --no-cache gcc musl-dev sqlite-dev
+
 # Copy go mod files from api directory (build context is repo root)
 COPY api/go.mod api/go.sum ./
 RUN go mod download
@@ -13,13 +16,16 @@ RUN go mod download
 # Copy api source code
 COPY api/ ./
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server ./cmd/server
+# Build the application with CGO enabled (required for go-sqlite3)
+RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o /app/server ./cmd/server
 
 # Runtime stage
 FROM alpine:latest
 
 WORKDIR /app
+
+# Install runtime dependencies for SQLite
+RUN apk add --no-cache sqlite-libs
 
 # Copy binary from builder
 COPY --from=builder /app/server .
