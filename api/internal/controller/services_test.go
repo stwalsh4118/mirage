@@ -354,3 +354,170 @@ func TestBuildImageReference_FullReference(t *testing.T) {
 	result := buildImageReference(spec)
 	assert.Equal(t, "docker.io/library/postgres:15-alpine", result)
 }
+
+func TestValidateDockerfilePath_ValidPaths(t *testing.T) {
+	validPaths := []string{
+		"Dockerfile",
+		"services/api/Dockerfile",
+		"apps/backend/prod.dockerfile",
+		"packages/auth/Dockerfile",
+		"path/to/nested/service/Dockerfile",
+	}
+
+	for _, path := range validPaths {
+		t.Run(path, func(t *testing.T) {
+			err := validateDockerfilePath(path)
+			assert.NoError(t, err, "path %q should be valid", path)
+		})
+	}
+}
+
+func TestValidateDockerfilePath_InvalidPaths(t *testing.T) {
+	tests := []struct {
+		path        string
+		description string
+	}{
+		{"", "empty path"},
+		{"/services/api/Dockerfile", "absolute path (Unix)"},
+		{"C:\\apps\\Dockerfile", "absolute path (Windows)"},
+		{"../Dockerfile", "parent directory traversal"},
+		{"../../../Dockerfile", "multiple parent traversal"},
+		{"services/../../../etc/passwd", "path with traversal in middle"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.description, func(t *testing.T) {
+			err := validateDockerfilePath(tt.path)
+			assert.Error(t, err, "path %q should be invalid: %s", tt.path, tt.description)
+		})
+	}
+}
+
+func TestValidateDockerfilePath_MaxLength(t *testing.T) {
+	// Create a path longer than 512 characters
+	longPath := "services/"
+	for len(longPath) < 520 {
+		longPath += "very/long/path/"
+	}
+	longPath += "Dockerfile"
+
+	err := validateDockerfilePath(longPath)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds maximum length")
+}
+
+func TestProvisionServices_WithDockerfilePath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := "https://github.com/user/monorepo"
+	branch := "main"
+	dockerfilePath := "services/api/Dockerfile"
+
+	mockClient := &mockRailwayClient{
+		createServiceFunc: func(ctx context.Context, in railway.CreateServiceInput) (railway.CreateServiceResult, error) {
+			// Verify dockerfile path is set as variable
+			assert.NotNil(t, in.Repo)
+			assert.NotNil(t, in.Variables)
+			assert.Equal(t, dockerfilePath, in.Variables["RAILWAY_DOCKERFILE_PATH"])
+			return railway.CreateServiceResult{ServiceID: "service-monorepo"}, nil
+		},
+	}
+
+	controller := &ServicesController{Railway: mockClient}
+
+	reqBody := ProvisionServicesRequest{
+		ProjectID:     "proj-123",
+		EnvironmentID: "env-123",
+		Services: []ServiceSpec{
+			{
+				Name:           "api-service",
+				Repo:           &repo,
+				Branch:         &branch,
+				DockerfilePath: &dockerfilePath,
+			},
+		},
+		RequestID: "req-monorepo",
+	}
+
+	body, _ := json.Marshal(reqBody)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/provision/services", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	controller.ProvisionServices(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp ProvisionServicesResponse
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"service-monorepo"}, resp.ServiceIDs)
+}
+
+func TestProvisionServices_DockerfilePathOnlyForRepoDeployment(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	imageName := "nginx"
+	dockerfilePath := "services/api/Dockerfile"
+
+	controller := &ServicesController{Railway: &mockRailwayClient{}}
+
+	reqBody := ProvisionServicesRequest{
+		ProjectID:     "proj-123",
+		EnvironmentID: "env-123",
+		Services: []ServiceSpec{
+			{
+				Name:           "invalid-service",
+				ImageName:      &imageName,
+				DockerfilePath: &dockerfilePath,
+			},
+		},
+		RequestID: "req-invalid",
+	}
+
+	body, _ := json.Marshal(reqBody)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/provision/services", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	controller.ProvisionServices(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "dockerfilePath can only be specified for repository-based deployments")
+}
+
+func TestProvisionServices_InvalidDockerfilePath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	repo := "https://github.com/user/monorepo"
+	branch := "main"
+	dockerfilePath := "../../../etc/passwd"
+
+	controller := &ServicesController{Railway: &mockRailwayClient{}}
+
+	reqBody := ProvisionServicesRequest{
+		ProjectID:     "proj-123",
+		EnvironmentID: "env-123",
+		Services: []ServiceSpec{
+			{
+				Name:           "invalid-service",
+				Repo:           &repo,
+				Branch:         &branch,
+				DockerfilePath: &dockerfilePath,
+			},
+		},
+		RequestID: "req-invalid",
+	}
+
+	body, _ := json.Marshal(reqBody)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/provision/services", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	controller.ProvisionServices(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "cannot traverse parent directories")
+}

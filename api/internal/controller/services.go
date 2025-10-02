@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 )
 
@@ -42,6 +43,9 @@ type ServiceSpec struct {
 	// Registry authentication (optional, for private images)
 	RegistryUsername *string `json:"registryUsername"`
 	RegistryPassword *string `json:"registryPassword"`
+
+	// Dockerfile path for monorepo builds (optional, relative to repo root)
+	DockerfilePath *string `json:"dockerfilePath,omitempty"`
 }
 
 // ProvisionServicesRequest creates one or more services in a given environment.
@@ -106,6 +110,26 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 			// Repository-based deployment
 			input.Repo = s.Repo
 			input.Branch = s.Branch
+
+			// Set Dockerfile path if specified
+			if s.DockerfilePath != nil && *s.DockerfilePath != "" {
+				if input.Variables == nil {
+					input.Variables = make(map[string]string)
+				}
+				input.Variables["RAILWAY_DOCKERFILE_PATH"] = *s.DockerfilePath
+				log.Info().
+					Str("service", s.Name).
+					Str("dockerfile_path", *s.DockerfilePath).
+					Msg("setting RAILWAY_DOCKERFILE_PATH variable for service")
+			}
+		}
+
+		// Log variable setting if any variables are present
+		if len(input.Variables) > 0 {
+			log.Debug().
+				Str("service", s.Name).
+				Interface("variables", input.Variables).
+				Msg("creating service with variables")
 		}
 
 		out, err := c.Railway.CreateService(ctx, input)
@@ -142,6 +166,16 @@ func validateServiceSpec(s ServiceSpec) error {
 		return fmt.Errorf("service '%s': both registryUsername and registryPassword must be provided together", s.Name)
 	}
 
+	// Validate Dockerfile path if provided (only valid for repo deployments)
+	if s.DockerfilePath != nil && *s.DockerfilePath != "" {
+		if !hasRepo {
+			return fmt.Errorf("service '%s': dockerfilePath can only be specified for repository-based deployments", s.Name)
+		}
+		if err := validateDockerfilePath(*s.DockerfilePath); err != nil {
+			return fmt.Errorf("service '%s': %w", s.Name, err)
+		}
+	}
+
 	return nil
 }
 
@@ -168,4 +202,48 @@ func buildImageReference(s ServiceSpec) string {
 	}
 
 	return imageRef
+}
+
+// validateDockerfilePath validates that a Dockerfile path is safe and relative.
+// Rejects absolute paths and parent directory traversal attempts.
+func validateDockerfilePath(path string) error {
+	if path == "" {
+		return fmt.Errorf("dockerfile path cannot be empty")
+	}
+
+	// Reject absolute paths (Unix-style)
+	if len(path) > 0 && path[0] == '/' {
+		return fmt.Errorf("dockerfile path must be relative to repository root, not absolute: %s", path)
+	}
+
+	// Reject absolute paths (Windows-style)
+	if len(path) > 1 && path[1] == ':' {
+		return fmt.Errorf("dockerfile path must be relative to repository root, not absolute: %s", path)
+	}
+
+	// Reject parent directory traversal
+	if len(path) >= 3 && (path[:3] == "../" || path[:3] == "..\\") {
+		return fmt.Errorf("dockerfile path cannot traverse parent directories: %s", path)
+	}
+
+	// Check for .. anywhere in path (more thorough check)
+	for i := 0; i < len(path)-1; i++ {
+		if path[i] == '.' && path[i+1] == '.' {
+			// Allow consecutive dots only if they're part of a filename (not directory traversal)
+			if i > 0 && (path[i-1] == '/' || path[i-1] == '\\') {
+				return fmt.Errorf("dockerfile path cannot traverse parent directories: %s", path)
+			}
+			if i+2 < len(path) && (path[i+2] == '/' || path[i+2] == '\\') {
+				return fmt.Errorf("dockerfile path cannot traverse parent directories: %s", path)
+			}
+		}
+	}
+
+	// Ensure reasonable length
+	const maxPathLength = 512
+	if len(path) > maxPathLength {
+		return fmt.Errorf("dockerfile path exceeds maximum length of %d characters", maxPathLength)
+	}
+
+	return nil
 }
