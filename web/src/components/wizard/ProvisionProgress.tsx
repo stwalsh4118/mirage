@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useWizardStore, type ProvisionStage, type StageInfo } from "@/store/wizard";
 import { ProgressStage } from "./ProgressStage";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,12 @@ interface StageConfig {
   description: string;
 }
 
-export function ProvisionProgress() {
+interface ProvisionProgressProps {
+  onClose?: () => void;
+}
+
+export function ProvisionProgress({ onClose }: ProvisionProgressProps) {
+  const router = useRouter();
   const {
     projectSelectionMode,
     currentStage,
@@ -20,6 +26,7 @@ export function ProvisionProgress() {
     serviceProgress,
     createdEnvironmentId,
     createdProjectId,
+    existingProjectId,
   } = useWizardStore();
 
   // Define stages based on flow
@@ -116,14 +123,23 @@ export function ProvisionProgress() {
             </Button>
             <Button
               onClick={() => {
-                // TODO: Navigate to environment detail page
-                const envId = createdEnvironmentId;
-                const projectId = createdProjectId;
-                console.log("Navigate to environment:", { envId, projectId });
-                window.location.href = "/dashboard";
+                // Close dialog first
+                onClose?.();
+                
+                // Reset wizard state
+                useWizardStore.getState().reset();
+                
+                // Navigate to project
+                const projectId = existingProjectId || createdProjectId;
+                if (projectId) {
+                  router.push(`/project/${projectId}`);
+                } else {
+                  // Fallback to dashboard if no project ID
+                  router.push("/dashboard");
+                }
               }}
             >
-              View Environment →
+              View Project →
             </Button>
           </>
         )}
