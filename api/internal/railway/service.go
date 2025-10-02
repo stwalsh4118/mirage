@@ -24,6 +24,9 @@ type CreateServiceInput struct {
 	// Docker image deployment (new)
 	Image               *string              `json:"image"`               // e.g., "nginx:latest", "ghcr.io/owner/repo:v1.0"
 	RegistryCredentials *RegistryCredentials `json:"registryCredentials"` // Optional, for private images
+
+	// Service variables (e.g., RAILWAY_DOCKERFILE_PATH, custom env vars)
+	Variables map[string]string `json:"variables,omitempty"`
 }
 
 // CreateServiceResult captures the created service identifier.
@@ -70,6 +73,11 @@ func (c *Client) CreateService(ctx context.Context, in CreateServiceInput) (Crea
 			"repo": in.Repo,
 		}
 		input["branch"] = in.Branch
+	}
+
+	// Add service variables if provided
+	if len(in.Variables) > 0 {
+		input["variables"] = in.Variables
 	}
 
 	vars := map[string]any{

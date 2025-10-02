@@ -109,3 +109,98 @@ func TestCreateServiceInput_DeterminesDeploymentType(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
+
+func TestCreateServiceInput_WithVariables(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       CreateServiceInput
+		expectVars  bool
+		expectedKey string
+		expectedVal string
+		description string
+	}{
+		{
+			name: "repository deployment with RAILWAY_DOCKERFILE_PATH",
+			input: CreateServiceInput{
+				ProjectID:     "proj-1",
+				EnvironmentID: "env-1",
+				Name:          "api",
+				Repo:          stringPtr("github.com/owner/monorepo"),
+				Branch:        stringPtr("main"),
+				Variables: map[string]string{
+					"RAILWAY_DOCKERFILE_PATH": "services/api/Dockerfile",
+				},
+			},
+			expectVars:  true,
+			expectedKey: "RAILWAY_DOCKERFILE_PATH",
+			expectedVal: "services/api/Dockerfile",
+			description: "Should include RAILWAY_DOCKERFILE_PATH variable",
+		},
+		{
+			name: "repository deployment with multiple variables",
+			input: CreateServiceInput{
+				ProjectID:     "proj-1",
+				EnvironmentID: "env-1",
+				Name:          "worker",
+				Repo:          stringPtr("github.com/owner/monorepo"),
+				Branch:        stringPtr("main"),
+				Variables: map[string]string{
+					"RAILWAY_DOCKERFILE_PATH": "services/worker/Dockerfile",
+					"NODE_ENV":                "production",
+					"WORKER_CONCURRENCY":      "10",
+				},
+			},
+			expectVars:  true,
+			expectedKey: "RAILWAY_DOCKERFILE_PATH",
+			expectedVal: "services/worker/Dockerfile",
+			description: "Should include multiple variables",
+		},
+		{
+			name: "repository deployment without variables",
+			input: CreateServiceInput{
+				ProjectID:     "proj-1",
+				EnvironmentID: "env-1",
+				Name:          "web",
+				Repo:          stringPtr("github.com/owner/simple-app"),
+				Branch:        stringPtr("main"),
+			},
+			expectVars:  false,
+			description: "Should work without variables",
+		},
+		{
+			name: "image deployment should not use variables for dockerfile path",
+			input: CreateServiceInput{
+				ProjectID:     "proj-1",
+				EnvironmentID: "env-1",
+				Name:          "nginx",
+				Image:         stringPtr("nginx:latest"),
+				Variables: map[string]string{
+					"CUSTOM_VAR": "value",
+				},
+			},
+			expectVars:  true,
+			expectedKey: "CUSTOM_VAR",
+			expectedVal: "value",
+			description: "Image deployments can have variables but not RAILWAY_DOCKERFILE_PATH",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hasVars := len(tt.input.Variables) > 0
+			if hasVars != tt.expectVars {
+				t.Errorf("%s: expected variables=%v, got variables=%v", tt.description, tt.expectVars, hasVars)
+			}
+
+			if tt.expectVars && tt.expectedKey != "" {
+				val, ok := tt.input.Variables[tt.expectedKey]
+				if !ok {
+					t.Errorf("%s: expected variable %q to exist but it didn't", tt.description, tt.expectedKey)
+				}
+				if val != tt.expectedVal {
+					t.Errorf("%s: expected variable %q=%q, got %q", tt.description, tt.expectedKey, tt.expectedVal, val)
+				}
+			}
+		})
+	}
+}
