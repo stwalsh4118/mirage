@@ -31,14 +31,25 @@ export function StepDiscovery() {
   const { owner, repo } = useMemo(() => {
     if (!repositoryUrl) return { owner: null, repo: null };
     
+    const trimmed = repositoryUrl.trim();
+    
     // Handle various GitHub URL formats
-    // - github.com/owner/repo
-    // - https://github.com/owner/repo
-    // - git@github.com:owner/repo.git
-    const match = repositoryUrl.match(/github\.com[/:]([\w-]+)\/([\w-]+)/i);
-    if (match) {
-      return { owner: match[1], repo: match[2].replace(/\.git$/, "") };
+    // 1. Simple format: "owner/repo" (Railway format)
+    // 2. Full URL: "github.com/owner/repo" or "https://github.com/owner/repo"
+    // 3. SSH format: "git@github.com:owner/repo.git"
+    
+    // Try simple "owner/repo" format first (Railway's expected format)
+    const simpleMatch = trimmed.match(/^([\w-]+)\/([\w.-]+?)(?:\.git)?$/i);
+    if (simpleMatch) {
+      return { owner: simpleMatch[1], repo: simpleMatch[2] };
     }
+    
+    // Try full URL format
+    const urlMatch = trimmed.match(/github\.com[/:]([\w-]+)\/([\w.-]+)/i);
+    if (urlMatch) {
+      return { owner: urlMatch[1], repo: urlMatch[2].replace(/\.git$/, "") };
+    }
+    
     return { owner: null, repo: null };
   }, [repositoryUrl]);
 
