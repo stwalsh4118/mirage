@@ -3,11 +3,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type WizardStepId = "project" | "source" | "config" | "review";
+export type WizardStepId = "project" | "source" | "discovery" | "config" | "review";
 
 export const WIZARD_STEPS_ORDER: WizardStepId[] = [
   "project",
   "source",
+  "discovery",
   "config",
   "review",
 ];
@@ -54,6 +55,7 @@ export type WizardState = {
   deploymentSource: "repository" | "image";
   repositoryUrl: string;
   repositoryBranch: string;
+  githubToken: string; // Optional GitHub token for private repos
   imageName: string;
   imageRegistry: string;
   imageTag: string;
@@ -61,13 +63,29 @@ export type WizardState = {
   useDigest: boolean;
   imagePorts: number[];
 
-  // Step 2: Config
+  // Step 2: Service Discovery
+  discoveryTriggered: boolean;
+  discoveryLoading: boolean;
+  discoveryError: string | null;
+  discoveredServices: Array<{
+    name: string;
+    dockerfilePath: string;
+    buildContext: string;
+    exposedPorts: number[];
+    buildArgs: string[];
+    baseImage: string;
+  }>;
+  selectedServiceIndices: number[]; // Indices of selected services
+  serviceNameOverrides: Record<number, string>; // Index -> edited name
+  discoverySkipped: boolean;
+
+  // Step 3: Config
   environmentName: string;
   templateKind: "dev" | "prod";
   ttlHours: number | null;
   environmentVariables: Array<{ key: string; value: string }>;
 
-  // Step 3: Strategy
+  // Step 4: Strategy
   deploymentStrategy: "sequential" | "parallel";
 
   // Provision state
@@ -116,12 +134,21 @@ const initialState: Omit<WizardState,
   deploymentSource: "repository",
   repositoryUrl: "",
   repositoryBranch: "main",
+  githubToken: "",
   imageName: "",
   imageRegistry: "",
   imageTag: "latest",
   imageDigest: "",
   useDigest: false,
   imagePorts: [],
+
+  discoveryTriggered: false,
+  discoveryLoading: false,
+  discoveryError: null,
+  discoveredServices: [],
+  selectedServiceIndices: [],
+  serviceNameOverrides: {},
+  discoverySkipped: false,
 
   environmentName: "",
   templateKind: "dev",
