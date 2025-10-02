@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -10,6 +11,7 @@ import (
 	"github.com/stwalsh4118/mirageapi/internal/controller"
 	"github.com/stwalsh4118/mirageapi/internal/logging"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
+	"github.com/stwalsh4118/mirageapi/internal/scanner"
 	"gorm.io/gorm"
 )
 
@@ -59,6 +61,13 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 		ec.RegisterRoutes(v1)
 		sc := &controller.ServicesController{Railway: rw}
 		sc.RegisterRoutes(v1)
+
+		// Initialize Dockerfile scanner for discovery
+		githubToken := os.Getenv("GITHUB_SERVICE_TOKEN")
+		scanCache := scanner.NewScanCache(scanner.DefaultCacheTTL)
+		githubScanner := scanner.NewGitHubScanner(githubToken, scanCache)
+		dc := &controller.DiscoveryController{Scanner: githubScanner}
+		dc.RegisterRoutes(v1)
 	}
 
 	v1.GET("/healthz", func(c *gin.Context) {
