@@ -9,6 +9,7 @@ import { ProvisionProgress } from "@/components/wizard/ProvisionProgress";
 import { useWizardStore } from "@/store/wizard";
 import { StepProject, StepSource, StepDiscovery, StepConfig, StepReview } from "./steps";
 import { useProvisionEnvironment, useProvisionProject, useProvisionServices } from "@/hooks/useRailway";
+import { generateUniqueServiceName } from "@/lib/serviceNaming";
 
 const DEFAULT_SERVICE_NAME = "web-app";
 
@@ -117,14 +118,19 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         ports?: number[];
       }> = [];
 
+      // Determine the environment name for unique service naming
+      const envName = state.environmentName || state.defaultEnvironmentName;
+
       // Add discovered services
       if (state.selectedServiceIndices.length > 0) {
         state.selectedServiceIndices.forEach((index) => {
           const discoveredService = state.discoveredServices[index];
           if (discoveredService) {
-            const name = state.serviceNameOverrides[index] || discoveredService.name;
+            const baseName = state.serviceNameOverrides[index] || discoveredService.name;
+            // Generate unique name by appending environment (e.g., "api-prod", "web-stg")
+            const uniqueName = generateUniqueServiceName(baseName, envName);
             servicesToCreate.push({
-              name,
+              name: uniqueName,
               repo: state.repositoryUrl?.trim() || undefined,
               branch: state.repositoryBranch?.trim() || undefined,
               dockerfilePath: discoveredService.dockerfilePath,
@@ -133,6 +139,9 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         });
       } else {
         // Fallback: create single service with manual config
+        // Generate unique name for the default service too
+        const uniqueName = generateUniqueServiceName(DEFAULT_SERVICE_NAME, envName);
+        
         const serviceConfig: {
           name: string;
           repo?: string;
@@ -141,7 +150,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
           imageRegistry?: string;
           imageTag?: string;
           ports?: number[];
-        } = { name: DEFAULT_SERVICE_NAME };
+        } = { name: uniqueName };
         
         if (state.deploymentSource === "repository") {
           const repo = state.repositoryUrl?.trim() || undefined;
@@ -243,7 +252,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         <div className="space-y-4 pt-2">
           {/* Show progress screen during provisioning AND after completion */}
           {isProvisioning || currentStage === "complete" || currentStage === "failed" ? (
-            <ProvisionProgress />
+            <ProvisionProgress onClose={() => setOpen(false)} />
           ) : (
             <>
               <WizardStepper />
