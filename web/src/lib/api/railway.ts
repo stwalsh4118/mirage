@@ -174,6 +174,8 @@ export type ProvisionServicesRequest = {
     imageName?: string;
     imageRegistry?: string;
     imageTag?: string;
+    // Dockerfile path for monorepo services
+    dockerfilePath?: string;
     environmentVariables?: Record<string, string>;
     registryUsername?: string;
     registryPassword?: string;
