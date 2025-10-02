@@ -6,7 +6,7 @@ export function WizardStepper() {
   const { currentStepIndex, goTo } = useWizardStore();
   return (
     <div className="pt-0">
-      <ol className="grid grid-cols-4 gap-2">
+      <ol className="grid grid-cols-5 gap-2">
         {WIZARD_STEPS_ORDER.map((stepId, index) => {
           const completed = index < currentStepIndex;
           const isCurrent = index === currentStepIndex;
