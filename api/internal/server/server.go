@@ -25,9 +25,9 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 	r.Use(gin.Recovery())
 	r.Use(logging.GinLogger())
 
-	// CORS for local dev UI
+	// CORS configuration from environment
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3002"},
+		AllowOrigins:     cfg.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},

@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 )
@@ -12,6 +13,8 @@ const (
 	// Poller defaults
 	DefaultPollIntervalSeconds = 5
 	DefaultPollJitterFraction  = 0.2
+	// CORS defaults
+	DefaultAllowedOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3002"
 )
 
 // AppConfig holds runtime configuration for the API service.
@@ -22,6 +25,8 @@ type AppConfig struct {
 	RailwayAPIToken  string
 	RailwayProjectID string
 	RailwayEndpoint  string
+	// CORS configuration
+	AllowedOrigins []string
 	// Status poller settings
 	PollIntervalSeconds int
 	PollJitterFraction  float64
@@ -36,6 +41,7 @@ func LoadFromEnv() (AppConfig, error) {
 		RailwayAPIToken:     os.Getenv("RAILWAY_API_TOKEN"),
 		RailwayProjectID:    os.Getenv("RAILWAY_PROJECT_ID"),
 		RailwayEndpoint:     os.Getenv("RAILWAY_GRAPHQL_ENDPOINT"),
+		AllowedOrigins:      parseAllowedOrigins(getEnv("ALLOWED_ORIGINS", DefaultAllowedOrigins)),
 		PollIntervalSeconds: getEnvInt("POLL_INTERVAL_SECONDS", DefaultPollIntervalSeconds),
 		PollJitterFraction:  getEnvFloat("POLL_JITTER_FRACTION", DefaultPollJitterFraction),
 	}
@@ -91,4 +97,21 @@ func getEnvFloat(key string, fallback float64) float64 {
 		}
 	}
 	return fallback
+}
+
+// parseAllowedOrigins parses a comma-separated list of origins and returns a slice.
+// Trims whitespace from each origin.
+func parseAllowedOrigins(origins string) []string {
+	if origins == "" {
+		return []string{}
+	}
+	parts := strings.Split(origins, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }
