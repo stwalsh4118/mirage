@@ -7,7 +7,7 @@ import { WizardStepper } from "@/components/wizard/WizardStepper";
 import { WizardFooter } from "@/components/wizard/WizardFooter";
 import { ProvisionProgress } from "@/components/wizard/ProvisionProgress";
 import { useWizardStore } from "@/store/wizard";
-import { StepProject, StepSource, StepConfig, StepReview } from "./steps";
+import { StepProject, StepSource, StepDiscovery, StepConfig, StepReview } from "./steps";
 import { useProvisionEnvironment, useProvisionProject, useProvisionServices } from "@/hooks/useRailway";
 
 const DEFAULT_SERVICE_NAME = "web-app";
@@ -105,8 +105,66 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
       // Stage 3: Create Services
       setStageStatus("creating-services", "running");
       
-      // Initialize service progress - for now just one service, but built for multiple
-      const servicesToCreate = [{ name: DEFAULT_SERVICE_NAME }];
+      // Build services list from discovered services or manual config
+      const servicesToCreate: Array<{
+        name: string;
+        repo?: string;
+        branch?: string;
+        dockerfilePath?: string;
+        imageName?: string;
+        imageRegistry?: string;
+        imageTag?: string;
+        ports?: number[];
+      }> = [];
+
+      // Add discovered services
+      if (state.selectedServiceIndices.length > 0) {
+        state.selectedServiceIndices.forEach((index) => {
+          const discoveredService = state.discoveredServices[index];
+          if (discoveredService) {
+            const name = state.serviceNameOverrides[index] || discoveredService.name;
+            servicesToCreate.push({
+              name,
+              repo: state.repositoryUrl?.trim() || undefined,
+              branch: state.repositoryBranch?.trim() || undefined,
+              dockerfilePath: discoveredService.dockerfilePath,
+            });
+          }
+        });
+      } else {
+        // Fallback: create single service with manual config
+        const serviceConfig: {
+          name: string;
+          repo?: string;
+          branch?: string;
+          imageName?: string;
+          imageRegistry?: string;
+          imageTag?: string;
+          ports?: number[];
+        } = { name: DEFAULT_SERVICE_NAME };
+        
+        if (state.deploymentSource === "repository") {
+          const repo = state.repositoryUrl?.trim() || undefined;
+          const branch = state.repositoryBranch?.trim() || undefined;
+          serviceConfig.repo = repo;
+          serviceConfig.branch = branch;
+        } else {
+          // Image-based deployment
+          const imageName = state.imageName?.trim() || undefined;
+          const imageRegistry = state.imageRegistry?.trim() || undefined;
+          const imageTag = state.imageTag?.trim() || undefined;
+          const ports = state.imagePorts && state.imagePorts.length > 0 ? state.imagePorts : undefined;
+          
+          serviceConfig.imageName = imageName;
+          if (imageRegistry) serviceConfig.imageRegistry = imageRegistry;
+          if (imageTag) serviceConfig.imageTag = imageTag;
+          if (ports) serviceConfig.ports = ports;
+        }
+        
+        servicesToCreate.push(serviceConfig);
+      }
+
+      // Initialize service progress
       setServiceProgress(
         servicesToCreate.map((s) => ({ name: s.name, status: "pending" as const }))
       );
@@ -118,40 +176,11 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         updateServiceProgress(i, { status: "running" });
 
         try {
-          // Build service config based on deployment source
-          const serviceConfig: {
-            name: string;
-            repo?: string;
-            branch?: string;
-            imageName?: string;
-            imageRegistry?: string;
-            imageTag?: string;
-            ports?: number[];
-          } = { name: service.name };
-          
-          if (state.deploymentSource === "repository") {
-            const repo = state.repositoryUrl?.trim() || undefined;
-            const branch = state.repositoryBranch?.trim() || undefined;
-            serviceConfig.repo = repo;
-            serviceConfig.branch = branch;
-          } else {
-            // Image-based deployment
-            const imageName = state.imageName?.trim() || undefined;
-            const imageRegistry = state.imageRegistry?.trim() || undefined;
-            const imageTag = state.imageTag?.trim() || undefined;
-            const ports = state.imagePorts && state.imagePorts.length > 0 ? state.imagePorts : undefined;
-            
-            serviceConfig.imageName = imageName;
-            if (imageRegistry) serviceConfig.imageRegistry = imageRegistry;
-            if (imageTag) serviceConfig.imageTag = imageTag;
-            if (ports) serviceConfig.ports = ports;
-          }
-
           const serviceResult = await provisionServices.mutateAsync({
             requestId: requestId!,
             projectId: finalProjectId,
             environmentId: finalEnvironmentId,
-            services: [serviceConfig],
+            services: [service],
           });
 
           createdServiceIds.push(...serviceResult.serviceIds);
@@ -200,7 +229,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
       </DialogTrigger>
       <DialogContent 
         className={`glass grain rounded-lg border border-border/60 shadow-sm ${
-          currentStepIndex === 2 ? "sm:max-w-4xl" : "sm:max-w-lg"
+          currentStepIndex === 2 || currentStepIndex === 3 ? "sm:max-w-4xl" : "sm:max-w-lg"
         }`}
       >
         <DialogHeader className="pb-0">
@@ -221,8 +250,9 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
               <div className="min-h-[200px]">
                 {currentStepIndex === 0 && <StepProject />}
                 {currentStepIndex === 1 && <StepSource />}
-                {currentStepIndex === 2 && <StepConfig />}
-                {currentStepIndex === 3 && <StepReview />}
+                {currentStepIndex === 2 && <StepDiscovery />}
+                {currentStepIndex === 3 && <StepConfig />}
+                {currentStepIndex === 4 && <StepReview />}
               </div>
               <WizardFooter
                 isSubmitting={false}

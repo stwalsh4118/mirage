@@ -4,7 +4,25 @@ import { Button } from "@/components/ui/button";
 import { useWizardStore, WIZARD_STEPS_ORDER } from "@/store/wizard";
 
 export function WizardFooter(props: { onConfirm?: () => void; isSubmitting?: boolean; canProceed?: boolean }) {
-  const { goBack, goNext, currentStepIndex, projectSelectionMode, existingProjectId, newProjectName, deploymentSource, repositoryUrl, repositoryBranch, imageName, imageTag, imageDigest, useDigest, environmentName } = useWizardStore();
+  const { 
+    goBack, 
+    goNext, 
+    currentStepIndex, 
+    projectSelectionMode, 
+    existingProjectId, 
+    newProjectName, 
+    deploymentSource, 
+    repositoryUrl, 
+    repositoryBranch, 
+    imageName, 
+    imageTag, 
+    imageDigest, 
+    useDigest, 
+    environmentName,
+    discoverySkipped,
+    selectedServiceIndices,
+  } = useWizardStore();
+  
   const step0Valid = projectSelectionMode === "existing" ? Boolean(existingProjectId) : newProjectName.trim().length > 0;
   
   // Step 1 validation: Either valid repo OR valid image
@@ -19,7 +37,12 @@ export function WizardFooter(props: { onConfirm?: () => void; isSubmitting?: boo
   
   const step1Valid = deploymentSource === "repository" ? repoValid : imageValid;
   
-  const step2Valid = environmentName.trim().length > 0;
+  // Step 2 validation: Discovery skipped OR at least one service selected (always valid)
+  const step2Valid = true; // Discovery is optional
+  
+  // Step 3 validation: Environment name required
+  const step3Valid = environmentName.trim().length > 0;
+  
   const last = currentStepIndex >= WIZARD_STEPS_ORDER.length - 1;
   return (
     <div className="mt-6 flex items-center justify-between border-t pt-4">
@@ -30,7 +53,7 @@ export function WizardFooter(props: { onConfirm?: () => void; isSubmitting?: boo
       </div>
       <div className="space-x-2">
         {!last && (
-          <Button onClick={goNext} disabled={props.canProceed === false || (currentStepIndex === 0 && !step0Valid) || (currentStepIndex === 1 && !step1Valid) || (currentStepIndex === 2 && !step2Valid)}>
+          <Button onClick={goNext} disabled={props.canProceed === false || (currentStepIndex === 0 && !step0Valid) || (currentStepIndex === 1 && !step1Valid) || (currentStepIndex === 2 && !step2Valid) || (currentStepIndex === 3 && !step3Valid)}>
             Next
           </Button>
         )}
