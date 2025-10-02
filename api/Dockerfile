@@ -1,17 +1,17 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.21-alpine AS builder
 
-ARG GO_VERSION=1.25
+ARG GO_VERSION=1.21
 ARG BUILD_ENV=production
 
 WORKDIR /app
 
-# Copy go mod files
-COPY go.mod go.sum ./
+# Copy go mod files from api directory (build context is repo root)
+COPY api/go.mod api/go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Copy api source code
+COPY api/ ./
 
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server ./cmd/server

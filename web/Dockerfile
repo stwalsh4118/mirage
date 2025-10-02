@@ -6,8 +6,8 @@ ARG NEXT_PUBLIC_API_BASE_URL
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy package files from web directory (build context is repo root)
+COPY web/package.json web/pnpm-lock.yaml ./
 
 # Install pnpm
 RUN npm install -g pnpm
@@ -15,8 +15,8 @@ RUN npm install -g pnpm
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
-COPY . .
+# Copy web source code
+COPY web/ ./
 
 # Build the application
 RUN pnpm build
