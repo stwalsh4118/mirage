@@ -45,7 +45,7 @@ export function DockerfileDiscoveryView({
         service.name.toLowerCase().includes(query) ||
         service.dockerfilePath.toLowerCase().includes(query) ||
         service.buildContext.toLowerCase().includes(query) ||
-        service.baseImage.toLowerCase().includes(query)
+        (service.baseImage && service.baseImage.toLowerCase().includes(query))
     );
   }, [serviceStates, searchQuery]);
 
