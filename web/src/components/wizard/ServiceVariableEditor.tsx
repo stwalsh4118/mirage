@@ -25,12 +25,11 @@ interface ServiceVariableEditorProps {
 
 export function ServiceVariableEditor({
   serviceName,
-  serviceIndex,
   globalVariables,
   serviceVariables,
   onServiceVariablesChange,
   systemVariables = {},
-}: ServiceVariableEditorProps) {
+}: Omit<ServiceVariableEditorProps, 'serviceIndex'>) {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const handleImport = (imported: Array<{ key: string; value: string }>) => {

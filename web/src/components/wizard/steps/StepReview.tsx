@@ -24,9 +24,7 @@ export function StepReview() {
     ttlHours,
     environmentVariables,
     serviceEnvironmentVariables,
-    discoveredServices,
     selectedServiceIndices,
-    serviceNameOverrides,
   } = useWizardStore();
 
   const summaryVars = environmentVariables.filter((v) => v.key.trim().length > 0);

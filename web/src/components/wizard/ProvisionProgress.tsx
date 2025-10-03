@@ -24,7 +24,6 @@ export function ProvisionProgress({ onClose }: ProvisionProgressProps) {
     currentStage,
     stages,
     serviceProgress,
-    createdEnvironmentId,
     createdProjectId,
     existingProjectId,
   } = useWizardStore();

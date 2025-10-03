@@ -19,8 +19,6 @@ export function WizardFooter(props: { onConfirm?: () => void; isSubmitting?: boo
     imageDigest, 
     useDigest, 
     environmentName,
-    discoverySkipped,
-    selectedServiceIndices,
   } = useWizardStore();
   
   const step0Valid = projectSelectionMode === "existing" ? Boolean(existingProjectId) : newProjectName.trim().length > 0;

@@ -51,7 +51,6 @@ export function DockerfileDiscoveryView({
 
   const selectedCount = serviceStates.filter((s) => s.selected).length;
   const allSelected = serviceStates.length > 0 && selectedCount === serviceStates.length;
-  const noneSelected = selectedCount === 0;
 
   const handleToggleAll = () => {
     const newSelected = !allSelected;
@@ -159,7 +158,7 @@ export function DockerfileDiscoveryView({
       {/* Services Grid */}
       {filteredServices.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredServices.map((service, index) => {
+          {filteredServices.map((service) => {
             // Find original index in serviceStates array
             const originalIndex = serviceStates.findIndex(
               (s) => s.dockerfilePath === service.dockerfilePath

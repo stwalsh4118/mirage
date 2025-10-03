@@ -20,7 +20,6 @@ export function StepDiscovery() {
     discoveryError,
     discoveredServices,
     selectedServiceIndices,
-    serviceNameOverrides,
     discoverySkipped,
     setField,
   } = useWizardStore();
@@ -256,13 +255,6 @@ export function StepDiscovery() {
 
   // Results state
   if (discoveredServices.length > 0) {
-    // Convert to SelectedService format for the discovery view
-    const servicesWithSelection = discoveredServices.map((service, index) => ({
-      ...service,
-      selected: selectedServiceIndices.includes(index),
-      editedName: serviceNameOverrides[index] || service.name,
-    }));
-
     return (
       <div className="space-y-4">
         <DockerfileDiscoveryView
