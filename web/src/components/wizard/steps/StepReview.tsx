@@ -23,9 +23,20 @@ export function StepReview() {
     templateKind,
     ttlHours,
     environmentVariables,
+    serviceEnvironmentVariables,
+    discoveredServices,
+    selectedServiceIndices,
+    serviceNameOverrides,
   } = useWizardStore();
 
   const summaryVars = environmentVariables.filter((v) => v.key.trim().length > 0);
+  
+  // Calculate service-specific variable counts
+  const serviceVarCounts = selectedServiceIndices.map((index) => {
+    const serviceVars = serviceEnvironmentVariables[index] || [];
+    return serviceVars.filter((v) => v.key.trim().length > 0).length;
+  });
+  const totalServiceVars = serviceVarCounts.reduce((sum, count) => sum + count, 0);
   const { data: projects = [] } = useRailwayProjectsDetails();
   const resolvedProjectName = projectSelectionMode === "existing"
     ? (projects.find((p) => p.id === existingProjectId)?.name || existingProjectName || existingProjectId || "(none)")
@@ -87,7 +98,16 @@ export function StepReview() {
               </div>
               <div>
                 <div className="text-muted-foreground">Variables</div>
-                <div className="font-medium">{summaryVars.length ? `${summaryVars.length} set` : "(none)"}</div>
+                <div className="font-medium">
+                  {summaryVars.length > 0 || totalServiceVars > 0 ? (
+                    <div className="space-y-0.5">
+                      {summaryVars.length > 0 && <div>{summaryVars.length} global</div>}
+                      {totalServiceVars > 0 && <div>{totalServiceVars} service-specific</div>}
+                    </div>
+                  ) : (
+                    "(none)"
+                  )}
+                </div>
               </div>
             </div>
           </div>

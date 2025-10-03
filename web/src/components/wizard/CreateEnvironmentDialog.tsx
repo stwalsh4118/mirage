@@ -121,6 +121,30 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
       // Determine the environment name for unique service naming
       const envName = state.environmentName || state.defaultEnvironmentName;
 
+      // Helper function to merge environment variables
+      const mergeEnvironmentVariables = (serviceIndex?: number): Record<string, string> | undefined => {
+        // Start with global variables
+        const globalVars = Object.fromEntries(
+          state.environmentVariables
+            .filter((v) => v.key.trim().length > 0)
+            .map((v) => [v.key, v.value])
+        );
+
+        // Merge with service-specific variables if provided
+        let mergedVars = { ...globalVars };
+        if (serviceIndex !== undefined && state.serviceEnvironmentVariables[serviceIndex]) {
+          const serviceVars = Object.fromEntries(
+            state.serviceEnvironmentVariables[serviceIndex]
+              .filter((v) => v.key.trim().length > 0)
+              .map((v) => [v.key, v.value])
+          );
+          mergedVars = { ...mergedVars, ...serviceVars };
+        }
+
+        // Return undefined if no variables, otherwise return the merged object
+        return Object.keys(mergedVars).length > 0 ? mergedVars : undefined;
+      };
+
       // Add discovered services
       if (state.selectedServiceIndices.length > 0) {
         state.selectedServiceIndices.forEach((index) => {
@@ -134,6 +158,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
               repo: state.repositoryUrl?.trim() || undefined,
               branch: state.repositoryBranch?.trim() || undefined,
               dockerfilePath: discoveredService.dockerfilePath,
+              environmentVariables: mergeEnvironmentVariables(index),
             });
           }
         });
@@ -150,7 +175,11 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
           imageRegistry?: string;
           imageTag?: string;
           ports?: number[];
-        } = { name: uniqueName };
+          environmentVariables?: Record<string, string>;
+        } = {
+          name: uniqueName,
+          environmentVariables: mergeEnvironmentVariables(), // Use global variables only
+        };
         
         if (state.deploymentSource === "repository") {
           const repo = state.repositoryUrl?.trim() || undefined;
@@ -237,8 +266,8 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         {props.trigger ?? <Button variant="default">Create environment</Button>}
       </DialogTrigger>
       <DialogContent 
-        className={`glass grain rounded-lg border border-border/60 shadow-sm ${
-          currentStepIndex === 2 || currentStepIndex === 3 ? "sm:max-w-4xl" : "sm:max-w-lg"
+        className={`glass grain rounded-lg border border-border/60 shadow-sm max-h-[90vh] flex flex-col ${
+          currentStepIndex === 3 ? "sm:max-w-6xl" : currentStepIndex === 2 ? "sm:max-w-4xl" : "sm:max-w-lg"
         }`}
       >
         <DialogHeader className="pb-0">
@@ -256,7 +285,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
           ) : (
             <>
               <WizardStepper />
-              <div className="min-h-[200px]">
+              <div className="min-h-[200px] overflow-y-auto flex-1">
                 {currentStepIndex === 0 && <StepProject />}
                 {currentStepIndex === 1 && <StepSource />}
                 {currentStepIndex === 2 && <StepDiscovery />}
