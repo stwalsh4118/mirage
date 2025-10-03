@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"strings"
 
 	"gorm.io/driver/postgres"
@@ -14,12 +13,11 @@ func Open(sqlitePath string) (*gorm.DB, error) {
 	if sqlitePath == "" {
 		sqlitePath = "mirage.db"
 	}
-	dsn := fmt.Sprintf("%s", sqlitePath)
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(sqlitePath), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	if err := db.AutoMigrate(&Environment{}, &Service{}, &Template{}); err != nil {
+	if err := db.AutoMigrate(&Environment{}, &Service{}); err != nil {
 		return nil, err
 	}
 	return db, nil
@@ -39,7 +37,7 @@ func OpenFromURL(databaseURL string) (*gorm.DB, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := db.AutoMigrate(&Environment{}, &Service{}, &Template{}); err != nil {
+		if err := db.AutoMigrate(&Environment{}, &Service{}); err != nil {
 			return nil, err
 		}
 		return db, nil
