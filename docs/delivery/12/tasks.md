@@ -15,4 +15,5 @@ This document lists all tasks associated with PBI 12.
 | 12-5 | [Build frontend Dockerfile discovery UI component](./12-5.md) | Done | Create React components to display discovered Dockerfiles in tree view with selection |
 | 12-6 | [Integrate Dockerfile discovery into service creation wizard](./12-6.md) | Done | Add Dockerfile discovery step to wizard flow and connect to backend |
 | 12-7 | [E2E CoS Test](./12-7.md) | Proposed | End-to-end testing of Dockerfile discovery and multi-service deployment |
+| 12-8 | [Enhance wizard to support per-service environment variables](./12-8.md) | Done | Add support for configuring environment variables per service with global variable inheritance |
 

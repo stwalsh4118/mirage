@@ -111,11 +111,12 @@ Many teams structure their monorepos with per-service Dockerfiles (e.g., `servic
 
 | Task ID | Description | Status |
 |---------|-------------|--------|
-| 12-1 | Research Railway API for service variables and Dockerfile path configuration | Proposed |
-| 12-2 | Implement backend Dockerfile scanner | Proposed |
-| 12-3 | Extend Railway service creation to support Dockerfile paths | Proposed |
-| 12-4 | Create Dockerfile discovery API endpoint | Proposed |
-| 12-5 | Build frontend Dockerfile discovery UI component | Proposed |
-| 12-6 | Integrate Dockerfile discovery into service creation wizard | Proposed |
+| 12-1 | Research Railway API for service variables and Dockerfile path configuration | Done |
+| 12-2 | Implement backend Dockerfile scanner | Done |
+| 12-3 | Extend Railway service creation to support Dockerfile paths | Done |
+| 12-4 | Create Dockerfile discovery API endpoint | Done |
+| 12-5 | Build frontend Dockerfile discovery UI component | Done |
+| 12-6 | Integrate Dockerfile discovery into service creation wizard | Done |
 | 12-7 | E2E CoS Test | Proposed |
+| 12-8 | Enhance wizard to support per-service environment variables | Proposed |
 
