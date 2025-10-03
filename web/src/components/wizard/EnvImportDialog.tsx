@@ -65,10 +65,20 @@ export function EnvImportDialog({
   };
 
   const handleFileRead = (file: File) => {
+    // Limit file size to 1MB to prevent performance issues
+    const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+    if (file.size > MAX_FILE_SIZE) {
+      alert("File is too large. Maximum size is 1MB.");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
       setContent(text);
+    };
+    reader.onerror = () => {
+      alert("Failed to read file. Please try again.");
     };
     reader.readAsText(file);
   };
@@ -84,15 +94,18 @@ export function EnvImportDialog({
       handleFileRead(envFile);
     }
   }, []);
+    
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    // Only set isDragging to false if we're leaving the drop zone entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -151,8 +164,8 @@ export function EnvImportDialog({
             </div>
             <Textarea
               value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="NODE_ENV=production&#10;PORT=3000&#10;DATABASE_URL=postgres://..."
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
+              placeholder="NODE_ENV=production\nPORT=3000\nDATABASE_URL=postgres://..."
               className="font-mono text-xs min-h-[200px] bg-card"
             />
             {content && (

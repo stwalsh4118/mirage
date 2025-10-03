@@ -8,9 +8,7 @@ import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Upload, Plus } from "lucide-react";
-import { ServiceVariableEditor } from "../ServiceVariableEditor";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Trash2, Upload } from "lucide-react";
 import { EnvImportDialog } from "../EnvImportDialog";
 import { VariableSourceBadge } from "../VariableSourceBadge";
 
@@ -33,18 +31,19 @@ export function StepConfig() {
 
   // Ensure there's always an empty row at the end for easy adding (global vars)
   useEffect(() => {
-    const hasEmptyRow = environmentVariables.some((v) => v.key === "" && v.value === "");
+    const lastVar = environmentVariables[environmentVariables.length - 1];
+    const hasEmptyRow = lastVar && lastVar.key === "" && lastVar.value === "";
     if (!hasEmptyRow) {
       setField("environmentVariables", [...environmentVariables, { key: "", value: "" }]);
     }
   }, [environmentVariables, setField]);
-
   // Ensure there's always an empty row for selected service vars
   useEffect(() => {
     if (selectedServiceIndex === null) return;
     
     const serviceVars = serviceEnvironmentVariables[selectedServiceIndex] || [];
-    const hasEmptyRow = serviceVars.some((v) => v.key === "" && v.value === "");
+    const lastVar = serviceVars[serviceVars.length - 1];
+    const hasEmptyRow = lastVar && lastVar.key === "" && lastVar.value === "";
     
     if (!hasEmptyRow) {
       const updated = { ...serviceEnvironmentVariables };

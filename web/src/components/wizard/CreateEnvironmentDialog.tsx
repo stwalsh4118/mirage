@@ -116,6 +116,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         imageRegistry?: string;
         imageTag?: string;
         ports?: number[];
+        environmentVariables?: Record<string, string>;
       }> = [];
 
       // Determine the environment name for unique service naming
