@@ -84,6 +84,7 @@ export type WizardState = {
   templateKind: "dev" | "prod";
   ttlHours: number | null;
   environmentVariables: Array<{ key: string; value: string }>;
+  serviceEnvironmentVariables: Record<number, Array<{ key: string; value: string }>>; // Per-service env vars keyed by service index
 
   // Step 4: Strategy
   deploymentStrategy: "sequential" | "parallel";
@@ -154,6 +155,7 @@ const initialState: Omit<WizardState,
   templateKind: "dev",
   ttlHours: null,
   environmentVariables: [],
+  serviceEnvironmentVariables: {},
 
   deploymentStrategy: "sequential",
 
