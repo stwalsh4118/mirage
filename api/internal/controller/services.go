@@ -110,26 +110,42 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 			// Repository-based deployment
 			input.Repo = s.Repo
 			input.Branch = s.Branch
-
-			// Set Dockerfile path if specified
-			if s.DockerfilePath != nil && *s.DockerfilePath != "" {
-				if input.Variables == nil {
-					input.Variables = make(map[string]string)
-				}
-				input.Variables["RAILWAY_DOCKERFILE_PATH"] = *s.DockerfilePath
-				log.Info().
-					Str("service", s.Name).
-					Str("dockerfile_path", *s.DockerfilePath).
-					Msg("setting RAILWAY_DOCKERFILE_PATH variable for service")
-			}
 		}
 
-		// Log variable setting if any variables are present
+		// Merge user-specified environment variables
+		// These are added first so system variables can override them if needed
+		if s.EnvVars != nil && len(s.EnvVars) > 0 {
+			if input.Variables == nil {
+				input.Variables = make(map[string]string)
+			}
+			for k, v := range s.EnvVars {
+				input.Variables[k] = v
+			}
+			log.Debug().
+				Str("service", s.Name).
+				Int("env_var_count", len(s.EnvVars)).
+				Msg("adding user-specified environment variables")
+		}
+
+		// Set system variables (these override user variables if there's a conflict)
+		// Set Dockerfile path if specified (repository deployments only)
+		if s.DockerfilePath != nil && *s.DockerfilePath != "" {
+			if input.Variables == nil {
+				input.Variables = make(map[string]string)
+			}
+			input.Variables["RAILWAY_DOCKERFILE_PATH"] = *s.DockerfilePath
+			log.Info().
+				Str("service", s.Name).
+				Str("dockerfile_path", *s.DockerfilePath).
+				Msg("setting RAILWAY_DOCKERFILE_PATH system variable for service")
+		}
+
+		// Log final variable set if any variables are present
 		if len(input.Variables) > 0 {
 			log.Debug().
 				Str("service", s.Name).
 				Interface("variables", input.Variables).
-				Msg("creating service with variables")
+				Msg("creating service with merged variables")
 		}
 
 		out, err := c.Railway.CreateService(ctx, input)
