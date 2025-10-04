@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -28,6 +29,7 @@ type ServicesController struct {
 // RegisterRoutes registers service-related routes under the provided router group.
 func (c *ServicesController) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/provision/services", c.ProvisionServices)
+	r.GET("/services/:id", c.GetService)
 }
 
 // ServiceSpec represents a single service to provision, supporting both
@@ -345,4 +347,67 @@ func serviceSpecToModel(spec ServiceSpec, environmentID string, railwayServiceID
 	service.ExposedPortsJSON = "[]"
 
 	return service, nil
+}
+
+// GetService retrieves a single service by ID with its complete build configuration
+func (c *ServicesController) GetService(ctx *gin.Context) {
+	serviceID := ctx.Param("id")
+	if serviceID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "service id required"})
+		return
+	}
+
+	var service store.Service
+	if err := c.DB.First(&service, "id = ?", serviceID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		log.Error().Err(err).Str("service_id", serviceID).Msg("failed to query service")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve service"})
+		return
+	}
+
+	// Convert to ServiceDetailDTO
+	dto := serviceModelToServiceDetailDTO(service)
+	ctx.JSON(http.StatusOK, dto)
+}
+
+// serviceModelToServiceDetailDTO converts a store.Service model to a ServiceDetailDTO
+// Note: ServiceDetailDTO is defined in environment.go to avoid duplication
+func serviceModelToServiceDetailDTO(svc store.Service) ServiceDetailDTO {
+	dto := ServiceDetailDTO{
+		ID:               svc.ID,
+		EnvironmentID:    svc.EnvironmentID,
+		Name:             svc.Name,
+		Path:             svc.Path,
+		Status:           svc.Status,
+		RailwayServiceID: svc.RailwayServiceID,
+		DeploymentType:   string(svc.DeploymentType),
+		SourceRepo:       svc.SourceRepo,
+		SourceBranch:     svc.SourceBranch,
+		DockerfilePath:   svc.DockerfilePath,
+		BuildContext:     svc.BuildContext,
+		RootDirectory:    svc.RootDirectory,
+		TargetStage:      svc.TargetStage,
+		DockerImage:      svc.DockerImage,
+		ImageRegistry:    svc.ImageRegistry,
+		ImageName:        svc.ImageName,
+		ImageTag:         svc.ImageTag,
+		ImageDigest:      svc.ImageDigest,
+		HealthCheckPath:  svc.HealthCheckPath,
+		StartCommand:     svc.StartCommand,
+		CreatedAt:        svc.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:        svc.UpdatedAt.UTC().Format(time.RFC3339),
+	}
+
+	// Parse ExposedPortsJSON
+	if svc.ExposedPortsJSON != "" {
+		var ports []int
+		if err := json.Unmarshal([]byte(svc.ExposedPortsJSON), &ports); err == nil {
+			dto.ExposedPorts = ports
+		}
+	}
+
+	return dto
 }
