@@ -198,20 +198,35 @@ type TemplateListItemDTO struct {
 }
 
 // GetEnvironmentMetadata retrieves the metadata for a specific environment
+// The :id parameter is the Railway environment ID
 func (c *EnvironmentController) GetEnvironmentMetadata(ctx *gin.Context) {
-	envID := ctx.Param("id")
-	if envID == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "environment id required"})
+	railwayEnvID := ctx.Param("id")
+	if railwayEnvID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "railway environment id required"})
 		return
 	}
 
+	// Look up the Mirage environment by Railway ID
+	var env store.Environment
+	if err := c.DB.Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+			return
+		}
+		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
+		return
+	}
+
+	// Look up metadata using the Mirage environment ID
 	var metadata store.EnvironmentMetadata
-	if err := c.DB.Where("environment_id = ?", envID).First(&metadata).Error; err != nil {
+	log.Info().Str("railway_env_id", railwayEnvID).Str("mirage_env_id", env.ID).Msg("getting environment metadata")
+	if err := c.DB.Where("environment_id = ?", env.ID).First(&metadata).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment metadata not found"})
 			return
 		}
-		log.Error().Err(err).Str("env_id", envID).Msg("failed to query environment metadata")
+		log.Error().Err(err).Str("mirage_env_id", env.ID).Msg("failed to query environment metadata")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve metadata"})
 		return
 	}
@@ -249,16 +264,31 @@ func (c *EnvironmentController) GetEnvironmentMetadata(ctx *gin.Context) {
 }
 
 // ListEnvironmentServices retrieves all services for a specific environment
+// The :id parameter is the Railway environment ID
 func (c *EnvironmentController) ListEnvironmentServices(ctx *gin.Context) {
-	envID := ctx.Param("id")
-	if envID == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "environment id required"})
+	railwayEnvID := ctx.Param("id")
+	if railwayEnvID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "railway environment id required"})
 		return
 	}
 
+	// Look up the Mirage environment by Railway ID
+	var env store.Environment
+	if err := c.DB.Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+			return
+		}
+		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
+		return
+	}
+
+	// Query services using the Mirage environment ID
 	var services []store.Service
-	if err := c.DB.Where("environment_id = ?", envID).Find(&services).Error; err != nil {
-		log.Error().Err(err).Str("env_id", envID).Msg("failed to query services")
+	log.Info().Str("railway_env_id", railwayEnvID).Str("mirage_env_id", env.ID).Msg("listing environment services")
+	if err := c.DB.Where("environment_id = ?", env.ID).Find(&services).Error; err != nil {
+		log.Error().Err(err).Str("mirage_env_id", env.ID).Msg("failed to query services")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve services"})
 		return
 	}
