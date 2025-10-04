@@ -21,8 +21,10 @@ import { ProjectHeader } from "./project-header"
 import { EnvironmentCard, type Environment as UIEnvironment, type Service as UIService } from "./environment-card"
 import { ServicesList } from "./services-list"
 import { StatusOverview } from "./status-overview"
+import { EnvironmentMetadata } from "@/components/environment/EnvironmentMetadata"
+import { ServiceBuildInfo } from "@/components/environment/ServiceBuildInfo"
 
-import { useRailwayProjectsDetails, useDeleteRailwayProject } from "@/hooks/useRailway"
+import { useRailwayProjectsDetails, useDeleteRailwayProject, useEnvironmentServices } from "@/hooks/useRailway"
 import { toast } from "sonner"
 import type { RailwayProjectDetails } from "@/lib/api/railway"
 
@@ -39,6 +41,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const { data: projects = [], isLoading, isError, refetch } = useRailwayProjectsDetails()
   const deleteProject = useDeleteRailwayProject()
   const router = useRouter()
+  
+  // Fetch service build configurations for the selected environment
+  const { data: serviceBuildConfigs = [] } = useEnvironmentServices(selectedEnvironment)
 
   const project: RailwayProjectDetails | undefined = useMemo(
     () => projects.find((p) => p.id === projectId || p.name === projectId),
@@ -149,6 +154,16 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             ))}
           </div>
 
+          {/* Environment Metadata */}
+          {selectedEnv && (
+            <EnvironmentMetadata 
+              environmentId={selectedEnv.id}
+              onSaveAsTemplate={() => {
+                toast.info("Save as Template feature coming in PBI 15")
+              }}
+            />
+          )}
+
           {/* Services Detail */}
           {selectedEnv && (
             <Card className="glass grain transition-all duration-200 hover:translate-y-[-1px] hover:scale-[1.01]">
@@ -164,6 +179,18 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 <ServicesList services={selectedEnv.services} />
               </CardContent>
             </Card>
+          )}
+
+          {/* Service Build Configurations */}
+          {selectedEnv && serviceBuildConfigs.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Service Build Configurations</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {serviceBuildConfigs.map((service) => (
+                  <ServiceBuildInfo key={service.id} service={service} />
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
