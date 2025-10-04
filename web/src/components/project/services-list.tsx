@@ -1,12 +1,28 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DeploymentTypeBadge, type DeploymentType } from "@/components/service/DeploymentTypeBadge"
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Trash2 } from "lucide-react"
+import { useDeleteRailwayService } from "@/hooks/useRailway"
+import { useState } from "react"
+import { toast } from "sonner"
 
 interface Service {
   id: string
   name: string
   status: "running" | "stopped" | "error"
   type: string
+  // Railway service ID for delete operations
+  railwayServiceId?: string
   // Deployment configuration (optional, defaults to source_repo)
   deploymentType?: DeploymentType
   sourceRepo?: string
@@ -21,6 +37,34 @@ interface ServicesListProps {
 }
 
 export function ServicesList({ services }: ServicesListProps) {
+  const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null)
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null)
+  const deleteService = useDeleteRailwayService()
+
+  const handleDeleteService = async () => {
+    if (!serviceToDelete?.railwayServiceId) return
+
+    setDeletingServiceId(serviceToDelete.id)
+    try {
+      await deleteService.mutateAsync(serviceToDelete.railwayServiceId)
+      toast.success(`Service "${serviceToDelete.name}" deleted successfully`)
+    } catch (error) {
+      console.error("Failed to delete service:", error)
+      toast.error(`Failed to delete service: ${error instanceof Error ? error.message : "Unknown error"}`)
+    } finally {
+      setDeletingServiceId(null)
+      setServiceToDelete(null)
+    }
+  }
+
+  const handleDeleteClick = (service: Service) => {
+    if (!service.railwayServiceId) {
+      toast.error("Cannot delete service: Railway ID not found")
+      return
+    }
+    setServiceToDelete(service)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "running":
@@ -75,8 +119,29 @@ export function ServicesList({ services }: ServicesListProps) {
   }
 
   return (
-    <div className="space-y-3">
-      {services.map((service) => {
+    <>
+      <AlertDialog open={!!serviceToDelete} onOpenChange={(open) => !open && setServiceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Service</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{serviceToDelete?.name}</strong>? This will remove the service from Railway and the database. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteService}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Service
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="space-y-3">
+        {services.map((service) => {
         const deploymentDetails = getDeploymentDetails(service)
         const deploymentType = service.deploymentType || "source_repo"
         
@@ -116,11 +181,21 @@ export function ServicesList({ services }: ServicesListProps) {
                 <Button variant="ghost" size="sm">
                   Logs
                 </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleDeleteClick(service)}
+                  disabled={deletingServiceId === service.id}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>
         )
-      })}
-    </div>
+        })}
+      </div>
+    </>
   )
 }

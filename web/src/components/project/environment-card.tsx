@@ -15,6 +15,8 @@ export interface Service {
   name: string
   status: "running" | "stopped" | "error"
   type: string
+  // Railway service ID for delete operations
+  railwayServiceId?: string
   // Deployment configuration (optional, defaults to source_repo)
   deploymentType?: "source_repo" | "docker_image"
   sourceRepo?: string
@@ -163,15 +165,9 @@ export function EnvironmentCard({ environment, isSelected, onSelect }: Environme
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Railway environment?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Environment</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{environment.name}</strong>? This action cannot be undone.
-              {environment.services.length > 0 && (
-                <>
-                  <br /><br />
-                  This will destroy the Railway environment and all <strong>{environment.services.length}</strong> associated service{environment.services.length === 1 ? "" : "s"}.
-                </>
-              )}
+              Are you sure you want to delete <strong>{environment.name}</strong>? This will permanently delete the environment{environment.services.length > 0 ? ` and all ${environment.services.length} service${environment.services.length === 1 ? "" : "s"}` : ""} from Railway and the database. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -185,7 +181,7 @@ export function EnvironmentCard({ environment, isSelected, onSelect }: Environme
               disabled={deleteEnvironment.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteEnvironment.isPending ? "Deleting..." : "Delete"}
+              {deleteEnvironment.isPending ? "Deleting..." : "Delete Environment"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
