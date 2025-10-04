@@ -146,6 +146,8 @@ export type ProvisionEnvironmentRequest = {
   projectId: string;
   name: string;
   requestId: string;
+  envType?: 'dev' | 'staging' | 'prod' | 'ephemeral';
+  wizardInputs?: Record<string, unknown>;
 };
 
 export type ProvisionEnvironmentResponse = {
@@ -207,4 +209,93 @@ export function deleteRailwayProject(projectId: string): Promise<void> {
   return fetchJSON<void>(`/api/v1/railway/project/${projectId}`, {
     method: 'DELETE',
   });
+}
+
+// Environment Metadata Types
+export type WizardInputs = {
+  sourceType?: 'repository' | 'docker_image';
+  repositoryUrl?: string;
+  branch?: string;
+  dockerImage?: string;
+  imageRegistry?: string;
+  imageTag?: string;
+  discoveredServices?: Array<{
+    name: string;
+    path: string;
+    dockerfilePath?: string;
+  }>;
+  environmentType?: string;
+  ttl?: number;
+  [key: string]: unknown;
+};
+
+export type ProvisionOutputs = {
+  railwayProjectId?: string;
+  railwayEnvironmentId?: string;
+  serviceIds?: string[];
+  [key: string]: unknown;
+};
+
+export type EnvironmentMetadata = {
+  id: string;
+  environmentId: string;
+  wizardInputs?: WizardInputs;
+  provisionOutputs?: ProvisionOutputs;
+  isTemplate: boolean;
+  templateName?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ServiceBuildConfig = {
+  id: string;
+  environmentId: string;
+  name: string;
+  status: string;
+  deploymentType: 'repository' | 'docker_image';
+  // Repository-based deployment
+  sourceRepo?: string;
+  sourceBranch?: string;
+  dockerfilePath?: string;
+  buildContext?: string;
+  // Docker image-based deployment
+  dockerImage?: string;
+  imageRegistry?: string;
+  imageTag?: string;
+  // Build configuration
+  buildArgs?: Record<string, string>;
+  exposedPorts?: number[];
+  // Railway IDs
+  railwayServiceId?: string;
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+};
+
+// Get environment metadata
+export function getEnvironmentMetadata(environmentId: string): Promise<EnvironmentMetadata> {
+  return fetchJSON<EnvironmentMetadata>(`/api/v1/environments/${environmentId}/metadata`);
+}
+
+// Get services for an environment
+export function getEnvironmentServices(environmentId: string): Promise<ServiceBuildConfig[]> {
+  return fetchJSON<ServiceBuildConfig[]>(`/api/v1/environments/${environmentId}/services`);
+}
+
+// Get single service details
+export function getServiceDetails(serviceId: string): Promise<ServiceBuildConfig> {
+  return fetchJSON<ServiceBuildConfig>(`/api/v1/services/${serviceId}`);
+}
+
+// List environment templates
+export type TemplateListItem = {
+  id: string;
+  templateName: string;
+  environmentType?: string;
+  serviceCount: number;
+  createdAt: string;
+};
+
+export function listTemplates(): Promise<TemplateListItem[]> {
+  return fetchJSON<TemplateListItem[]>(`/api/v1/templates`);
 }

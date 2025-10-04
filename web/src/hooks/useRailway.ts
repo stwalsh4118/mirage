@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment, deleteRailwayProject } from "@/lib/api/railway";
+import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment, deleteRailwayProject, getEnvironmentMetadata, EnvironmentMetadata, getEnvironmentServices, ServiceBuildConfig, getServiceDetails, listTemplates, TemplateListItem } from "@/lib/api/railway";
 
 const RAILWAY_POLL_INTERVAL_MS = 30_000;
 
@@ -85,5 +85,49 @@ export function useDeleteRailwayProject() {
       await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
       await qc.invalidateQueries({ queryKey: ["railway-projects"] });
     },
+  });
+}
+
+// Environment Metadata hooks
+export function useEnvironmentMetadata(environmentId: string | null | undefined, enabled = true) {
+  return useQuery<EnvironmentMetadata>({
+    queryKey: ["environment-metadata", environmentId],
+    queryFn: () => {
+      if (!environmentId) throw new Error("Environment ID is required");
+      return getEnvironmentMetadata(environmentId);
+    },
+    enabled: enabled && !!environmentId,
+    retry: false, // Don't retry for 404s (missing metadata)
+  });
+}
+
+export function useEnvironmentServices(environmentId: string | null | undefined, enabled = true) {
+  return useQuery<ServiceBuildConfig[]>({
+    queryKey: ["environment-services", environmentId],
+    queryFn: () => {
+      if (!environmentId) throw new Error("Environment ID is required");
+      return getEnvironmentServices(environmentId);
+    },
+    enabled: enabled && !!environmentId,
+    retry: false,
+  });
+}
+
+export function useServiceDetails(serviceId: string | null | undefined, enabled = true) {
+  return useQuery<ServiceBuildConfig>({
+    queryKey: ["service-details", serviceId],
+    queryFn: () => {
+      if (!serviceId) throw new Error("Service ID is required");
+      return getServiceDetails(serviceId);
+    },
+    enabled: enabled && !!serviceId,
+    retry: false,
+  });
+}
+
+export function useTemplates() {
+  return useQuery<TemplateListItem[]>({
+    queryKey: ["templates"],
+    queryFn: () => listTemplates(),
   });
 }
