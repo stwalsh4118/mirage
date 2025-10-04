@@ -100,15 +100,9 @@ export function RailwayEnvironmentCard({ env, href }: { env: RailwayEnvironmentW
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Railway environment?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Environment</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{env.name}</strong>? This action cannot be undone.
-              {serviceCount > 0 && (
-                <>
-                  <br /><br />
-                  This will destroy the Railway environment and all <strong>{serviceCount}</strong> associated service{serviceCount === 1 ? "" : "s"}.
-                </>
-              )}
+              Are you sure you want to delete <strong>{env.name}</strong>? This will permanently delete the environment{serviceCount > 0 ? ` and all ${serviceCount} service${serviceCount === 1 ? "" : "s"}` : ""} from Railway and the database. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -121,7 +115,7 @@ export function RailwayEnvironmentCard({ env, href }: { env: RailwayEnvironmentW
               disabled={deleteEnvironment.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteEnvironment.isPending ? "Deleting..." : "Delete"}
+              {deleteEnvironment.isPending ? "Deleting..." : "Delete Environment"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

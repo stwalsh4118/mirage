@@ -31,16 +31,14 @@ export function ProjectCard({ project }: { project: RailwayProjectDetails }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const deleteProject = useDeleteRailwayProject();
 
-  const handleDelete = () => {
-    deleteProject.mutate(project.id, {
-      onSuccess: () => {
-        toast.success(`"${project.name}" has been permanently deleted from Railway.`);
-        setShowDeleteDialog(false);
-      },
-      onError: (error) => {
-        toast.error(error.message || "Could not delete project. Please try again.");
-      },
-    });
+  const handleDelete = async () => {
+    try {
+      await deleteProject.mutateAsync(project.id);
+      toast.success(`"${project.name}" has been permanently deleted from Railway.`);
+      setShowDeleteDialog(false);
+    } catch (error) {
+      toast.error((error as Error).message || "Could not delete project. Please try again.");
+    }
   };
 
   return (
