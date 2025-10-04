@@ -129,7 +129,8 @@ export type ProvisionProjectRequest = {
 
 export type ProvisionProjectResponse = {
   projectId: string;
-  baseEnvironmentId: string;
+  baseEnvironmentId: string;      // Mirage internal ID for foreign keys
+  railwayEnvironmentId: string;   // Railway ID for Railway API calls
   name: string;
 };
 
@@ -151,7 +152,8 @@ export type ProvisionEnvironmentRequest = {
 };
 
 export type ProvisionEnvironmentResponse = {
-  environmentId: string;
+  environmentId: string;        // Mirage internal ID for foreign keys
+  railwayEnvironmentId: string; // Railway ID for Railway API calls
 };
 
 export function provisionEnvironment(body: ProvisionEnvironmentRequest): Promise<ProvisionEnvironmentResponse> {
@@ -165,7 +167,8 @@ export function provisionEnvironment(body: ProvisionEnvironmentRequest): Promise
 // Provision: Create Services
 export type ProvisionServicesRequest = {
   projectId: string;
-  environmentId: string;
+  environmentId: string;        // Mirage internal ID for database FK
+  railwayEnvironmentId?: string; // Railway ID for Railway API calls (optional for backward compat)
   services: {
     name: string;
     // Repository-based deployment
@@ -207,6 +210,12 @@ export function deleteRailwayEnvironment(railwayEnvironmentId: string): Promise<
 // WARNING: This is a destructive operation that deletes the project and all its resources
 export function deleteRailwayProject(projectId: string): Promise<void> {
   return fetchJSON<void>(`/api/v1/railway/project/${projectId}`, {
+    method: 'DELETE',
+  });
+}
+
+export function deleteRailwayService(railwayServiceId: string): Promise<void> {
+  return fetchJSON<void>(`/api/v1/railway/service/${railwayServiceId}`, {
     method: 'DELETE',
   });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment, deleteRailwayProject, getEnvironmentMetadata, EnvironmentMetadata, getEnvironmentServices, ServiceBuildConfig, getServiceDetails, listTemplates, TemplateListItem } from "@/lib/api/railway";
+import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment, deleteRailwayProject, deleteRailwayService, getEnvironmentMetadata, EnvironmentMetadata, getEnvironmentServices, ServiceBuildConfig, getServiceDetails, listTemplates, TemplateListItem } from "@/lib/api/railway";
 
 const RAILWAY_POLL_INTERVAL_MS = 30_000;
 
@@ -84,6 +84,17 @@ export function useDeleteRailwayProject() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
       await qc.invalidateQueries({ queryKey: ["railway-projects"] });
+    },
+  });
+}
+
+export function useDeleteRailwayService() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: (railwayServiceId: string) => deleteRailwayService(railwayServiceId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["railway-projects-details"] });
+      await qc.invalidateQueries({ queryKey: ["environment-services"] });
     },
   });
 }
