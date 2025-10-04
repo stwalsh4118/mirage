@@ -143,9 +143,7 @@ func TestService_BuildConfiguration(t *testing.T) {
 	startCmd := "npm start"
 	targetStage := "production"
 
-	// Marshal build args and ports to JSON
-	buildArgs := map[string]string{"NODE_ENV": "production", "VERSION": "1.0.0"}
-	buildArgsJSON, _ := json.Marshal(buildArgs)
+	// Marshal ports to JSON
 	exposedPorts := []int{3000, 8080}
 	exposedPortsJSON, _ := json.Marshal(exposedPorts)
 
@@ -159,7 +157,6 @@ func TestService_BuildConfiguration(t *testing.T) {
 		DockerfilePath:   &dockerfilePath,
 		BuildContext:     &buildContext,
 		RootDirectory:    &rootDir,
-		BuildArgsJSON:    string(buildArgsJSON),
 		TargetStage:      &targetStage,
 		ExposedPortsJSON: string(exposedPortsJSON),
 		HealthCheckPath:  &healthCheck,
@@ -197,15 +194,7 @@ func TestService_BuildConfiguration(t *testing.T) {
 		t.Errorf("expected start command %s, got %v", startCmd, retrieved.StartCommand)
 	}
 
-	// Verify JSON fields can be unmarshaled
-	var retrievedBuildArgs map[string]string
-	if err := json.Unmarshal([]byte(retrieved.BuildArgsJSON), &retrievedBuildArgs); err != nil {
-		t.Fatalf("failed to unmarshal build args: %v", err)
-	}
-	if retrievedBuildArgs["NODE_ENV"] != "production" {
-		t.Errorf("expected NODE_ENV=production in build args, got %s", retrievedBuildArgs["NODE_ENV"])
-	}
-
+	// Verify ExposedPortsJSON can be unmarshaled
 	var retrievedPorts []int
 	if err := json.Unmarshal([]byte(retrieved.ExposedPortsJSON), &retrievedPorts); err != nil {
 		t.Fatalf("failed to unmarshal exposed ports: %v", err)

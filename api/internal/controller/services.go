@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
+	"github.com/stwalsh4118/mirageapi/internal/store"
+	"gorm.io/gorm"
 )
 
 // RailwayServiceClient defines the interface for Railway service operations needed by the controller.
@@ -18,6 +22,7 @@ type RailwayServiceClient interface {
 // ServicesController handles Railway service provisioning endpoints.
 type ServicesController struct {
 	Railway RailwayServiceClient
+	DB      *gorm.DB
 }
 
 // RegisterRoutes registers service-related routes under the provided router group.
@@ -114,7 +119,7 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 
 		// Merge user-specified environment variables
 		// These are added first so system variables can override them if needed
-		if s.EnvVars != nil && len(s.EnvVars) > 0 {
+		if len(s.EnvVars) > 0 {
 			if input.Variables == nil {
 				input.Variables = make(map[string]string)
 			}
@@ -154,6 +159,34 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 			return
 		}
 		ids = append(ids, out.ServiceID)
+
+		// Persist service to database
+		if c.DB != nil {
+			serviceModel, err := serviceSpecToModel(s, req.EnvironmentID, out.ServiceID)
+			if err != nil {
+				log.Error().Err(err).
+					Str("service_name", s.Name).
+					Str("railway_service_id", out.ServiceID).
+					Msg("failed to convert service spec to model")
+				// Continue - Railway service was created successfully
+				continue
+			}
+
+			if err := c.DB.Create(&serviceModel).Error; err != nil {
+				log.Error().Err(err).
+					Str("service_name", s.Name).
+					Str("railway_service_id", out.ServiceID).
+					Msg("failed to persist service to database after Railway service creation")
+				// Don't fail the request - Railway service was created successfully
+			} else {
+				log.Info().
+					Str("service_id", serviceModel.ID).
+					Str("service_name", serviceModel.Name).
+					Str("railway_service_id", out.ServiceID).
+					Str("deployment_type", string(serviceModel.DeploymentType)).
+					Msg("persisted service to database")
+			}
+		}
 	}
 	ctx.JSON(http.StatusOK, ProvisionServicesResponse{ServiceIDs: ids})
 }
@@ -262,4 +295,54 @@ func validateDockerfilePath(path string) error {
 	}
 
 	return nil
+}
+
+// serviceSpecToModel converts a ServiceSpec and Railway service ID to a store.Service model.
+func serviceSpecToModel(spec ServiceSpec, environmentID string, railwayServiceID string) (store.Service, error) {
+	service := store.Service{
+		ID:               uuid.New().String(),
+		EnvironmentID:    environmentID,
+		Name:             spec.Name,
+		Status:           "provisioning",
+		RailwayServiceID: railwayServiceID,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+
+	// Determine deployment type and set fields accordingly
+	if spec.ImageName != nil {
+		// Docker image deployment
+		service.DeploymentType = store.DeploymentTypeDockerImage
+		service.DockerImage = buildImageReference(spec)
+
+		if spec.ImageRegistry != nil {
+			service.ImageRegistry = *spec.ImageRegistry
+		}
+		if spec.ImageName != nil {
+			service.ImageName = *spec.ImageName
+		}
+		if spec.ImageTag != nil {
+			service.ImageTag = *spec.ImageTag
+		}
+		// ImageDigest and ImageAuthStored would be set later if needed
+	} else {
+		// Repository-based deployment
+		service.DeploymentType = store.DeploymentTypeSourceRepo
+
+		if spec.Repo != nil {
+			service.SourceRepo = *spec.Repo
+		}
+		if spec.Branch != nil {
+			service.SourceBranch = *spec.Branch
+		}
+		if spec.DockerfilePath != nil {
+			service.DockerfilePath = spec.DockerfilePath
+		}
+	}
+
+	// ExposedPortsJSON - initialize as empty array for now
+	// In the future, this could be extracted from service configuration
+	service.ExposedPortsJSON = "[]"
+
+	return service, nil
 }

@@ -61,7 +61,6 @@ type Service struct {
 	DockerfilePath *string `gorm:"type:text"` // Path to Dockerfile relative to repo root
 	BuildContext   *string `gorm:"type:text"` // Docker build context path
 	RootDirectory  *string `gorm:"type:text"` // Root directory for the service
-	BuildArgsJSON  string  `gorm:"type:text"` // JSON array/map of build arguments
 	TargetStage    *string `gorm:"type:text"` // Multi-stage build target
 
 	// Docker image fields (for docker_image deployment)

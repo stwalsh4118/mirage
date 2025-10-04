@@ -3,10 +3,14 @@ package controller
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
+	"github.com/stwalsh4118/mirageapi/internal/status"
+	"github.com/stwalsh4118/mirageapi/internal/store"
 )
 
 type ProjectDTO struct {
@@ -324,6 +328,7 @@ type ProvisionProjectResponse struct {
 }
 
 // ProvisionProject creates a new Railway project by delegating to the railway client.
+// After successful creation, persists the base environment to our database.
 func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 	if c.Railway == nil {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
@@ -339,6 +344,40 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Persist the base environment to database
+	if c.DB != nil {
+		envName := "production" // Default Railway environment name
+		if req.DefaultEnvironmentName != nil {
+			envName = *req.DefaultEnvironmentName
+		}
+
+		env := store.Environment{
+			ID:                   uuid.New().String(),
+			Name:                 envName,
+			Type:                 store.EnvironmentTypeProd, // Base environment defaults to prod
+			Status:               status.StatusCreating,
+			RailwayProjectID:     res.ProjectID,
+			RailwayEnvironmentID: res.BaseEnvironmentID,
+			CreatedAt:            time.Now(),
+			UpdatedAt:            time.Now(),
+		}
+
+		if err := c.DB.Create(&env).Error; err != nil {
+			log.Error().Err(err).
+				Str("project_id", res.ProjectID).
+				Str("env_id", res.BaseEnvironmentID).
+				Msg("failed to persist environment to database after Railway project creation")
+			// Don't fail the request - Railway resource was created successfully
+		} else {
+			log.Info().
+				Str("env_id", env.ID).
+				Str("railway_project_id", res.ProjectID).
+				Str("railway_env_id", res.BaseEnvironmentID).
+				Msg("persisted base environment to database")
+		}
+	}
+
 	ctx.JSON(http.StatusOK, ProvisionProjectResponse{ProjectID: res.ProjectID, BaseEnvironmentID: res.BaseEnvironmentID, Name: res.Name})
 }
 

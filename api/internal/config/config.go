@@ -11,7 +11,7 @@ import (
 const (
 	DefaultHTTPPort = "8080"
 	// Poller defaults
-	DefaultPollIntervalSeconds = 5
+	DefaultPollIntervalSeconds = 0
 	DefaultPollJitterFraction  = 0.2
 	// CORS defaults
 	DefaultAllowedOrigins = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3002"

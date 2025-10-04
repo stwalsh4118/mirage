@@ -59,7 +59,7 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 	if db != nil && rw != nil {
 		ec := &controller.EnvironmentController{DB: db, Railway: rw}
 		ec.RegisterRoutes(v1)
-		sc := &controller.ServicesController{Railway: rw}
+		sc := &controller.ServicesController{Railway: rw, DB: db}
 		sc.RegisterRoutes(v1)
 
 		// Initialize Dockerfile scanner for discovery
