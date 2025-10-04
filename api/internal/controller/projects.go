@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/status"
 	"github.com/stwalsh4118/mirageapi/internal/store"
+	"gorm.io/gorm"
 )
 
 type ProjectDTO struct {
@@ -322,13 +324,15 @@ type ProvisionProjectRequest struct {
 }
 
 type ProvisionProjectResponse struct {
-	ProjectID         string `json:"projectId"`
-	BaseEnvironmentID string `json:"baseEnvironmentId"`
-	Name              string `json:"name"`
+	ProjectID            string `json:"projectId"`
+	BaseEnvironmentID    string `json:"baseEnvironmentId"`    // Mirage internal environment ID
+	RailwayEnvironmentID string `json:"railwayEnvironmentId"` // Railway's environment ID
+	Name                 string `json:"name"`
 }
 
 // ProvisionProject creates a new Railway project by delegating to the railway client.
-// After successful creation, persists the base environment to our database.
+// After successful creation, explicitly fetches the default environment and persists
+// both the environment and metadata to our database atomically.
 func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 	if c.Railway == nil {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
@@ -339,49 +343,140 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Step 1: Create the Railway project
 	res, err := c.Railway.CreateProject(ctx, railway.CreateProjectInput{DefaultEnvironmentName: req.DefaultEnvironmentName, Name: req.Name})
 	if err != nil {
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Persist the base environment to database
-	if c.DB != nil {
-		envName := "production" // Default Railway environment name
-		if req.DefaultEnvironmentName != nil {
-			envName = *req.DefaultEnvironmentName
+	// Step 2: Explicitly fetch the default environment from Railway
+	// Railway mutation responses can be unreliable, so we explicitly query for the environment
+	railwayEnvID := res.BaseEnvironmentID
+	envName := "production" // Default Railway environment name
+	if req.DefaultEnvironmentName != nil {
+		envName = *req.DefaultEnvironmentName
+	}
+
+	// If mutation didn't return environment ID, explicitly fetch it
+	if railwayEnvID == "" {
+		log.Info().
+			Str("project_id", res.ProjectID).
+			Msg("base environment ID not in mutation response, fetching explicitly")
+
+		pd, err := c.Railway.GetProjectWithDetailsByID(ctx, res.ProjectID)
+		if err != nil {
+			log.Error().Err(err).Str("project_id", res.ProjectID).Msg("failed to fetch project details for default environment")
+			ctx.JSON(http.StatusBadGateway, gin.H{"error": "project created but failed to retrieve default environment: " + err.Error()})
+			return
 		}
 
+		if len(pd.Environments) == 0 {
+			log.Error().Str("project_id", res.ProjectID).Msg("project created but has no environments")
+			ctx.JSON(http.StatusBadGateway, gin.H{"error": "project created but no default environment found"})
+			return
+		}
+
+		// Find the environment by name (or take first one)
+		for _, env := range pd.Environments {
+			if env.Name == envName {
+				railwayEnvID = env.ID
+				break
+			}
+		}
+		if railwayEnvID == "" {
+			railwayEnvID = pd.Environments[0].ID
+			envName = pd.Environments[0].Name
+			log.Warn().
+				Str("project_id", res.ProjectID).
+				Str("expected_name", envName).
+				Str("actual_name", pd.Environments[0].Name).
+				Msg("default environment name mismatch, using first environment")
+		}
+	}
+
+	// Step 3: Persist the base environment and metadata to database
+	if c.DB != nil {
 		env := store.Environment{
 			ID:                   uuid.New().String(),
 			Name:                 envName,
 			Type:                 store.EnvironmentTypeProd, // Base environment defaults to prod
 			Status:               status.StatusCreating,
 			RailwayProjectID:     res.ProjectID,
-			RailwayEnvironmentID: res.BaseEnvironmentID,
+			RailwayEnvironmentID: railwayEnvID,
 			CreatedAt:            time.Now(),
 			UpdatedAt:            time.Now(),
 		}
 
-		if err := c.DB.Create(&env).Error; err != nil {
-			log.Error().Err(err).
-				Str("project_id", res.ProjectID).
-				Str("env_id", res.BaseEnvironmentID).
-				Msg("failed to persist environment to database after Railway project creation")
-			// Don't fail the request - Railway resource was created successfully
-		} else {
+		// Use transaction to ensure Environment and EnvironmentMetadata are created atomically
+		txErr := c.DB.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Create(&env).Error; err != nil {
+				return err
+			}
+
+			// Always create EnvironmentMetadata with provision outputs
+			// This ensures we can track and clone environments even without wizard inputs
+			provisionOutputs := map[string]interface{}{
+				"projectId":            res.ProjectID,
+				"railwayEnvironmentId": railwayEnvID,
+				"environmentName":      envName,
+			}
+			provisionOutputsJSON, _ := json.Marshal(provisionOutputs)
+
+			metadata := store.EnvironmentMetadata{
+				ID:                   uuid.New().String(),
+				EnvironmentID:        env.ID,
+				WizardInputsJSON:     nil, // No wizard inputs for project creation
+				ProvisionOutputsJSON: provisionOutputsJSON,
+				CreatedAt:            time.Now(),
+				UpdatedAt:            time.Now(),
+			}
+
+			if err := tx.Create(&metadata).Error; err != nil {
+				return err
+			}
+
 			log.Info().
-				Str("env_id", env.ID).
+				Str("mirage_env_id", env.ID).
+				Str("metadata_id", metadata.ID).
 				Str("railway_project_id", res.ProjectID).
-				Str("railway_env_id", res.BaseEnvironmentID).
-				Msg("persisted base environment to database")
+				Str("railway_env_id", railwayEnvID).
+				Msg("persisted base environment and metadata to database")
+
+			return nil
+		})
+
+		if txErr != nil {
+			log.Error().Err(txErr).
+				Str("project_id", res.ProjectID).
+				Str("railway_env_id", railwayEnvID).
+				Msg("failed to persist environment to database after Railway project creation")
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "project created but failed to persist to database: " + txErr.Error()})
+			return
 		}
+
+		// Return Mirage environment ID for frontend use (foreign keys)
+		ctx.JSON(http.StatusOK, ProvisionProjectResponse{
+			ProjectID:            res.ProjectID,
+			BaseEnvironmentID:    env.ID,       // Mirage ID for foreign keys
+			RailwayEnvironmentID: railwayEnvID, // Railway ID for Railway API calls
+			Name:                 res.Name,
+		})
+		return
 	}
 
-	ctx.JSON(http.StatusOK, ProvisionProjectResponse{ProjectID: res.ProjectID, BaseEnvironmentID: res.BaseEnvironmentID, Name: res.Name})
+	// If DB is nil, return Railway ID for backward compatibility
+	ctx.JSON(http.StatusOK, ProvisionProjectResponse{
+		ProjectID:            res.ProjectID,
+		BaseEnvironmentID:    railwayEnvID,
+		RailwayEnvironmentID: railwayEnvID,
+		Name:                 res.Name,
+	})
 }
 
 // DeleteRailwayEnvironment deletes a Railway environment by its Railway environment ID.
+// After successful Railway deletion, cleans up the database: services, metadata, and environment records.
 func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
 	if c.Railway == nil {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
@@ -393,6 +488,7 @@ func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
 		return
 	}
 
+	// Step 1: Delete from Railway first (fail fast if Railway API fails)
 	log.Info().Str("railway_env_id", railwayEnvID).Msg("deleting railway environment")
 	if err := c.Railway.DestroyEnvironment(ctx, railway.DestroyEnvironmentInput{EnvironmentID: railwayEnvID}); err != nil {
 		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("railway delete environment failed")
@@ -400,11 +496,71 @@ func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
 		return
 	}
 
+	// Step 2: Clean up database (Railway deletion succeeded, so clean up our records)
+	if c.DB != nil {
+		// Look up the Mirage environment by Railway ID
+		var env store.Environment
+		if err := c.DB.Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				log.Warn().Str("railway_env_id", railwayEnvID).Msg("environment not found in database, skipping cleanup")
+			} else {
+				log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment for cleanup")
+			}
+			// Don't fail the request - Railway resource was deleted successfully
+			ctx.Status(http.StatusNoContent)
+			return
+		}
+
+		// Use transaction to ensure atomic cleanup
+		txErr := c.DB.Transaction(func(tx *gorm.DB) error {
+			// Delete all services for this environment
+			result := tx.Where("environment_id = ?", env.ID).Delete(&store.Service{})
+			if result.Error != nil {
+				return result.Error
+			}
+			log.Info().
+				Str("mirage_env_id", env.ID).
+				Int64("services_deleted", result.RowsAffected).
+				Msg("deleted services from database")
+
+			// Delete metadata for this environment (may not exist for old environments)
+			result = tx.Where("environment_id = ?", env.ID).Delete(&store.EnvironmentMetadata{})
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected > 0 {
+				log.Info().
+					Str("mirage_env_id", env.ID).
+					Msg("deleted environment metadata from database")
+			}
+
+			// Delete the environment itself
+			if err := tx.Delete(&env).Error; err != nil {
+				return err
+			}
+			log.Info().
+				Str("mirage_env_id", env.ID).
+				Str("railway_env_id", railwayEnvID).
+				Msg("deleted environment from database")
+
+			return nil
+		})
+
+		if txErr != nil {
+			log.Error().Err(txErr).
+				Str("railway_env_id", railwayEnvID).
+				Str("mirage_env_id", env.ID).
+				Msg("failed to clean up database after Railway environment deletion")
+			// Don't fail the request - Railway resource was deleted successfully
+		}
+	}
+
 	ctx.Status(http.StatusNoContent)
 }
 
 // DeleteRailwayProject deletes a Railway project and all its associated resources.
 // WARNING: This is a destructive operation that cannot be undone.
+// After successful Railway deletion, cleans up the database: all environments, metadata, and services.
 func (c *EnvironmentController) DeleteRailwayProject(ctx *gin.Context) {
 	if c.Railway == nil {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
@@ -416,11 +572,74 @@ func (c *EnvironmentController) DeleteRailwayProject(ctx *gin.Context) {
 		return
 	}
 
+	// Step 1: Delete from Railway first (fail fast if Railway API fails)
 	log.Warn().Str("project_id", projectID).Msg("deleting railway project - irreversible operation")
 	if err := c.Railway.DestroyProject(ctx, railway.DestroyProjectInput{ProjectID: projectID}); err != nil {
 		log.Error().Err(err).Str("project_id", projectID).Msg("railway delete project failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Step 2: Clean up database (Railway deletion succeeded, so clean up all project resources)
+	if c.DB != nil {
+		// Find all environments associated with this Railway project
+		var envs []store.Environment
+		if err := c.DB.Where("railway_project_id = ?", projectID).Find(&envs).Error; err != nil {
+			log.Error().Err(err).Str("project_id", projectID).Msg("failed to query environments for cleanup")
+			// Don't fail the request - Railway resource was deleted successfully
+			ctx.Status(http.StatusNoContent)
+			return
+		}
+
+		if len(envs) == 0 {
+			log.Info().Str("project_id", projectID).Msg("no environments found in database for this project")
+			ctx.Status(http.StatusNoContent)
+			return
+		}
+
+		// Use transaction to ensure atomic cleanup of all environments and their resources
+		txErr := c.DB.Transaction(func(tx *gorm.DB) error {
+			totalServices := int64(0)
+			totalMetadata := int64(0)
+
+			for _, env := range envs {
+				// Delete all services for this environment
+				result := tx.Where("environment_id = ?", env.ID).Delete(&store.Service{})
+				if result.Error != nil {
+					return result.Error
+				}
+				totalServices += result.RowsAffected
+
+				// Delete metadata for this environment (may not exist)
+				result = tx.Where("environment_id = ?", env.ID).Delete(&store.EnvironmentMetadata{})
+				if result.Error != nil {
+					return result.Error
+				}
+				totalMetadata += result.RowsAffected
+
+				// Delete the environment itself
+				if err := tx.Delete(&env).Error; err != nil {
+					return err
+				}
+			}
+
+			log.Info().
+				Str("project_id", projectID).
+				Int("environments_deleted", len(envs)).
+				Int64("services_deleted", totalServices).
+				Int64("metadata_deleted", totalMetadata).
+				Msg("deleted all project resources from database")
+
+			return nil
+		})
+
+		if txErr != nil {
+			log.Error().Err(txErr).
+				Str("project_id", projectID).
+				Int("environments_found", len(envs)).
+				Msg("failed to clean up database after Railway project deletion")
+			// Don't fail the request - Railway resource was deleted successfully
+		}
 	}
 
 	ctx.Status(http.StatusNoContent)
