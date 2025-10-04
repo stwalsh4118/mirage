@@ -94,3 +94,22 @@ func (c *Client) CreateService(ctx context.Context, in CreateServiceInput) (Crea
 	}
 	return CreateServiceResult{ServiceID: resp.ServiceCreate.ID}, nil
 }
+
+// DestroyServiceInput carries the service identifier.
+type DestroyServiceInput struct {
+	ServiceID string
+}
+
+// DestroyService removes a service from Railway.
+func (c *Client) DestroyService(ctx context.Context, in DestroyServiceInput) error {
+	mutation := `mutation ServiceDelete($serviceId: String!) {
+  serviceDelete(id: $serviceId)
+}`
+	vars := map[string]any{
+		"serviceId": in.ServiceID,
+	}
+	var resp struct {
+		ServiceDelete bool `json:"serviceDelete"`
+	}
+	return c.execute(ctx, mutation, vars, &resp)
+}
