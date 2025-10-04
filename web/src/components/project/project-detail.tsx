@@ -67,6 +67,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             name: s.serviceName, 
             status: "running", 
             type: "web",
+            // Railway service ID for deletion operations
+            railwayServiceId: s.serviceId,
             // Deployment type and configuration
             deploymentType,
             sourceRepo: s.source?.repo,
@@ -88,18 +90,17 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     env.name.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!project) return
-    deleteProject.mutate(project.id, {
-      onSuccess: () => {
-        toast.success(`"${project.name}" has been permanently deleted from Railway.`)
-        router.push("/dashboard")
-        setShowDeleteDialog(false)
-      },
-      onError: (error) => {
-        toast.error(error.message || "Could not delete project. Please try again.")
-      },
-    })
+    try {
+      await deleteProject.mutateAsync(project.id)
+      toast.success(`"${project.name}" has been permanently deleted from Railway.`)
+      setShowDeleteDialog(false)
+      // Navigate after invalidation completes
+      router.push("/dashboard")
+    } catch (error) {
+      toast.error((error as Error).message || "Could not delete project. Please try again.")
+    }
   }
 
   return (
@@ -233,15 +234,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Railway Project?</AlertDialogTitle>
-              <AlertDialogDescription className="space-y-2">
-                <p>
-                  You are about to permanently delete <strong>{project.name}</strong>.
-                </p>
-                <p className="text-destructive font-medium">
-                  This will delete all {environments.length} environment(s), {project.services?.length ?? 0} service(s), and all associated data.
-                  This action cannot be undone.
-                </p>
+              <AlertDialogTitle>Delete Project</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete <strong>{project.name}</strong>? This will permanently delete the project, all {environments.length} environment{environments.length === 1 ? "" : "s"}, and all associated services from Railway and the database. This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -251,7 +246,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 disabled={deleteProject.isPending}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deleteProject.isPending ? "Deleting..." : "Delete project"}
+                {deleteProject.isPending ? "Deleting..." : "Delete Project"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
