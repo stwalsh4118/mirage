@@ -36,22 +36,28 @@ Environment cloning eliminates this toil by automating the duplication process w
 #### Clone Process Steps
 1. **Validation**: Verify source environment exists and is accessible
 2. **Metadata Retrieval**: Fetch complete environment metadata (PBI 13)
-3. **Configuration Transformation**:
+3. **Environment Variables Fetching**:
+   - Fetch env vars from source environment via Railway API
+   - **Note**: Env vars are NOT stored in local database for security (see PBI 13)
+   - Railway API is the source of truth for all environment variables
+   - User can preview and modify env vars before applying to target
+4. **Configuration Transformation**:
    - Apply target environment type (dev → staging, etc.)
-   - Update environment variables for target context
+   - Apply user overrides to environment variables
    - Modify resource allocations if specified
    - Update TTL settings
-4. **Railway Provisioning**:
+5. **Railway Provisioning**:
    - Create Railway project (if target is new project)
    - Create Railway environment
    - Create all services with cloned configuration
-   - Apply environment variables
+   - Apply environment variables via Railway API
    - Establish service connections
-5. **Metadata Storage**:
+6. **Metadata Storage**:
    - Save new environment to database
-   - Record clone relationship
+   - Record clone relationship (`ClonedFromEnvID`)
    - Store build configurations
    - Save service dependencies
+   - **Note**: Do NOT store environment variables locally
 
 #### API Endpoints
 - `POST /api/environments/:id/clone` - Clone environment
@@ -152,31 +158,35 @@ Environment cloning eliminates this toil by automating the duplication process w
 4. User can customize environment name, type, and TTL
 5. User can include/exclude specific services
 6. User can override environment variables before cloning
-7. Preview step shows configuration diff
-8. Clone operation creates new Railway project (if specified)
-9. Clone operation creates new Railway environment
-10. All services from source are recreated in target
-11. Service build configurations are preserved (from PBI 13)
-12. Service dependencies are maintained
-13. Environment variables are copied (with overrides applied)
-14. Cloned environment has `ClonedFromEnvID` set correctly
-15. Clone lineage is visible on environment detail pages
-16. Clone operation is atomic (all-or-nothing with rollback)
-17. Progress indicator shows per-service status during clone
-18. Success feedback provides link to new environment
-19. Error handling provides actionable feedback
+7. Environment variables are fetched from Railway API (not local database)
+8. Preview step shows configuration diff including env var changes
+9. Clone operation creates new Railway project (if specified)
+10. Clone operation creates new Railway environment
+11. All services from source are recreated in target
+12. Service build configurations are preserved (from PBI 13)
+13. Service dependencies are maintained
+14. Environment variables are copied to target via Railway API (with overrides applied)
+15. No environment variables are stored in local database
+16. Cloned environment has `ClonedFromEnvID` set correctly
+17. Clone lineage is visible on environment detail pages
+18. Clone operation is atomic (all-or-nothing with rollback)
+19. Progress indicator shows per-service status during clone
+20. Success feedback provides link to new environment
+21. Error handling provides actionable feedback
 
 ## Dependencies
 - PBI 13 (Service Build Configuration Management) - REQUIRED for metadata storage
 - PBI 10 (Environment Creation Wizard) - UI patterns and provisioning logic
 - PBI 11 (Docker Image Service Deployment) - image-based service cloning
 - Complete Railway API integration for environment/service creation
+- Railway API support for fetching environment variables (GET /environments/:id/variables)
+- Railway API support for setting environment variables (POST /environments/:id/variables)
 
 ## Open Questions
 1. Should cloning be synchronous or asynchronous (job queue)?
 2. How do we handle cloning environments with active deployments?
 3. Should we support partial clones (subset of services)?
-4. How do we handle secrets during cloning (exclude, encrypt, prompt)?
+4. ~~How do we handle secrets during cloning (exclude, encrypt, prompt)?~~ **RESOLVED**: Environment variables are fetched from Railway API during clone operation. No local storage of secrets. Clone flow: Fetch vars from source env → Create target env → Copy vars to target env via Railway API.
 5. Should users be able to clone from other users' environments (RBAC)?
 6. Do we need clone operation history/audit log?
 7. Should we support "clone and update" (clone + modify in one operation)?

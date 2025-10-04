@@ -190,7 +190,7 @@ type ServiceDependency struct {
 
 ## Open Questions
 1. Should templates be user-specific or organization-wide?
-2. How do we handle secrets in templates (encrypt, exclude, tokenize)?
+2. ~~How do we handle secrets in templates (encrypt, exclude, tokenize)?~~ **RESOLVED**: Environment variables (including secrets) are NOT stored in the database for security. Railway API is the source of truth. During cloning (PBI 15), env vars will be fetched from Railway API on-demand.
 3. Should we version templates (v1, v2, etc.)?
 4. How do we handle Railway-specific IDs during import?
 5. Should dependency detection be automatic or manual?
