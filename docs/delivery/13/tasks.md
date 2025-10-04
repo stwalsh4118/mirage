@@ -15,4 +15,5 @@ This document lists all tasks associated with PBI 13.
 | 13-5 | [Implement metadata retrieval API endpoints](./13-5.md) | Done | Add GET endpoints for retrieving persisted environment and service data |
 | 13-6 | [Build frontend metadata display components](./13-6.md) | Done | Create UI components to display environment metadata and service configurations |
 | 13-7 | [E2E CoS Test](./13-7.md) | Proposed | End-to-end testing of persistence, metadata capture, and retrieval |
+| 13-8 | [Add database cleanup for Railway resource deletion](./13-8.md) | Review | Implement database cleanup when deleting projects, environments, and services from Railway |
 
