@@ -55,7 +55,6 @@ export function CommandMenu() {
             <CommandGroup heading="Dashboard">
               <CommandItem onSelect={() => { setSortBy("name"); setOpen(false); }}>Sort by name</CommandItem>
               <CommandItem onSelect={() => { setSortBy("services"); setOpen(false); }}>Sort by services</CommandItem>
-              <CommandItem onSelect={() => { setSortBy("plugins"); setOpen(false); }}>Sort by plugins</CommandItem>
               <CommandItem onSelect={() => { setSortBy("environments"); setOpen(false); }}>Sort by environments</CommandItem>
               <CommandSeparator />
               <CommandItem onSelect={() => { setView("grid"); setOpen(false); }}>View: Grid</CommandItem>

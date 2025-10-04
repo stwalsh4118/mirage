@@ -82,12 +82,11 @@ type ProjectDetailsDTO struct {
 	ID           string               `json:"id"`
 	Name         string               `json:"name"`
 	Services     []ProjectDTO         `json:"services"`
-	Plugins      []ProjectDTO         `json:"plugins"`
 	Environments []EnvWithServicesDTO `json:"environments"`
 }
 
 // ListRailwayProjects returns projects filtered by comma-separated name list (?names=a,b,c)
-// If ?details=1 is provided, returns services/plugins/environments for each project.
+// If ?details=1 is provided, returns services/environments for each project.
 func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 	if c.Railway == nil {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
@@ -119,12 +118,9 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 					continue
 				}
 			}
-			pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Plugins: []ProjectDTO{}, Environments: []EnvWithServicesDTO{}}
+			pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Environments: []EnvWithServicesDTO{}}
 			for _, s := range p.Services {
 				pd.Services = append(pd.Services, ProjectDTO{ID: s.ID, Name: s.Name})
-			}
-			for _, g := range p.Plugins {
-				pd.Plugins = append(pd.Plugins, ProjectDTO{ID: g.ID, Name: g.Name})
 			}
 			for _, e := range p.Environments {
 				env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ServiceInstanceDTO{}}
@@ -232,12 +228,9 @@ func (c *EnvironmentController) GetRailwayProject(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 			return
 		}
-		pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Plugins: []ProjectDTO{}, Environments: []EnvWithServicesDTO{}}
+		pd := ProjectDetailsDTO{ID: p.ID, Name: p.Name, Services: []ProjectDTO{}, Environments: []EnvWithServicesDTO{}}
 		for _, s := range p.Services {
 			pd.Services = append(pd.Services, ProjectDTO{ID: s.ID, Name: s.Name})
-		}
-		for _, g := range p.Plugins {
-			pd.Plugins = append(pd.Plugins, ProjectDTO{ID: g.ID, Name: g.Name})
 		}
 		for _, e := range p.Environments {
 			env := EnvWithServicesDTO{ID: e.ID, Name: e.Name, Services: []ServiceInstanceDTO{}}

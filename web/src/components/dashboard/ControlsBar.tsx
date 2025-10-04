@@ -23,7 +23,6 @@ export function ControlsBar() {
             <SelectContent>
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="services">Services</SelectItem>
-              <SelectItem value="plugins">Plugins</SelectItem>
               <SelectItem value="environments">Environments</SelectItem>
             </SelectContent>
           </Select>

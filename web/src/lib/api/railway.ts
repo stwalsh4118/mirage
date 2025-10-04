@@ -71,7 +71,6 @@ export type RailwayProjectDetails = {
   id: string;
   name: string;
   services: RailwayProjectItem[];
-  plugins: RailwayProjectItem[];
   environments: RailwayEnvironmentWithServices[];
 };
 

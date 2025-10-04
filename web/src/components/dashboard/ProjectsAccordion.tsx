@@ -56,9 +56,6 @@ export function ProjectsAccordion() {
     case "services":
       projects.sort((a, b) => (b.services?.length ?? 0) - (a.services?.length ?? 0));
       break;
-    case "plugins":
-      projects.sort((a, b) => (b.plugins?.length ?? 0) - (a.plugins?.length ?? 0));
-      break;
     case "environments":
       projects.sort((a, b) => (b.environments?.length ?? 0) - (a.environments?.length ?? 0));
       break;
@@ -91,7 +88,6 @@ function ProjectAccordionItem({ project }: { project: RailwayProjectDetails }) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   const services = project.services?.length ?? 0;
-  const plugins = project.plugins?.length ?? 0;
   const envs = project.environments?.length ?? 0;
 
   useEffect(() => {
@@ -119,7 +115,6 @@ function ProjectAccordionItem({ project }: { project: RailwayProjectDetails }) {
         </div>
         <div className="flex items-center gap-3 text-xs">
           <div className="rounded-md border px-2 py-1 bg-primary/10 text-primary border-primary/20">services: <span className="font-medium">{services}</span></div>
-          <div className="rounded-md border px-2 py-1 bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20">plugins: <span className="font-medium">{plugins}</span></div>
           <div className="rounded-md border px-2 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 border-emerald-500/20">envs: <span className="font-medium">{envs}</span></div>
           <Button asChild variant="outline" size="sm" className="ml-2 bg-transparent" onClick={(e) => e.stopPropagation()}>
             <Link href={`/project/${project.id}`}>Open</Link>

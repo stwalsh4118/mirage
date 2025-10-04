@@ -32,9 +32,6 @@ export function ProjectsTable() {
     case "services":
       projects.sort((a, b) => (b.services?.length ?? 0) - (a.services?.length ?? 0));
       break;
-    case "plugins":
-      projects.sort((a, b) => (b.plugins?.length ?? 0) - (a.plugins?.length ?? 0));
-      break;
     case "environments":
       projects.sort((a, b) => (b.environments?.length ?? 0) - (a.environments?.length ?? 0));
       break;
@@ -60,7 +57,6 @@ export function ProjectsTable() {
             <TableHead className="bg-muted/40">Name</TableHead>
             <TableHead className="bg-muted/40">ID</TableHead>
             <TableHead className="text-right bg-muted/40">Services</TableHead>
-            <TableHead className="text-right bg-muted/40">Plugins</TableHead>
             <TableHead className="text-right bg-muted/40">Environments</TableHead>
             <TableHead className="text-right bg-muted/40">Actions</TableHead>
           </TableRow>
@@ -68,7 +64,6 @@ export function ProjectsTable() {
         <TableBody>
           {projects.map((p) => {
             const services = p.services?.length ?? 0;
-            const plugins = p.plugins?.length ?? 0;
             const envs = p.environments?.length ?? 0;
             return (
               <TableRow key={p.id} className="cursor-pointer" onClick={(e) => { if ((e.target as HTMLElement).closest("a,button")) return; }}>
@@ -78,9 +73,6 @@ export function ProjectsTable() {
                 <TableCell className="text-xs text-muted-foreground">{p.id}</TableCell>
                 <TableCell className="text-right">
                   <Pill color={services > 0 ? "green" : "amber"}>{services}</Pill>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Pill color={plugins > 0 ? "blue" : "neutral"}>{plugins}</Pill>
                 </TableCell>
                 <TableCell className="text-right">
                   <Pill color={envs > 0 ? "accent" : "neutral"}>{envs}</Pill>

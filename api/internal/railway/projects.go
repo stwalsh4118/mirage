@@ -89,7 +89,6 @@ type ProjectDetails struct {
 	ID           string               `json:"id"`
 	Name         string               `json:"name"`
 	Services     []ProjectItem        `json:"services"`
-	Plugins      []ProjectItem        `json:"plugins"`
 	Environments []ProjectEnvironment `json:"environments"`
 }
 
@@ -111,7 +110,6 @@ query ProjectDetails($id: ID!) {
     id
     name
     services { edges { node { id name } } }
-    plugins { edges { node { id name } } }
     environments {
       edges {
         node {
@@ -199,7 +197,6 @@ query ProjectsDetails_root($first: Int!) {
         id
         name
         services { edges { node { id name } } }
-        plugins { edges { node { id name } } }
         environments {
           edges {
             node {
@@ -287,7 +284,7 @@ func (c *Client) GetProject(ctx context.Context, id string) (Project, error) {
 	return Project{ID: out.Project.ID, Name: out.Project.Name}, nil
 }
 
-// GetProjectWithDetailsByID fetches one project with services/plugins/environments.
+// GetProjectWithDetailsByID fetches one project with services/environments.
 func (c *Client) GetProjectWithDetailsByID(ctx context.Context, id string) (ProjectDetails, error) {
 	var out struct {
 		Project struct {
@@ -298,11 +295,6 @@ func (c *Client) GetProjectWithDetailsByID(ctx context.Context, id string) (Proj
 					Node ProjectItem `json:"node"`
 				} `json:"edges"`
 			} `json:"services"`
-			Plugins struct {
-				Edges []struct {
-					Node ProjectItem `json:"node"`
-				} `json:"edges"`
-			} `json:"plugins"`
 			Environments struct {
 				Edges []struct {
 					Node struct {
@@ -325,9 +317,6 @@ func (c *Client) GetProjectWithDetailsByID(ctx context.Context, id string) (Proj
 	pd := ProjectDetails{ID: out.Project.ID, Name: out.Project.Name}
 	for _, se := range out.Project.Services.Edges {
 		pd.Services = append(pd.Services, se.Node)
-	}
-	for _, pe := range out.Project.Plugins.Edges {
-		pd.Plugins = append(pd.Plugins, pe.Node)
 	}
 	for _, ee := range out.Project.Environments.Edges {
 		env := ProjectEnvironment{ID: ee.Node.ID, Name: ee.Node.Name}
@@ -389,7 +378,7 @@ func (c *Client) ListProjects(ctx context.Context, first int) ([]Project, error)
 }
 
 // ListProjectsWithDetails returns projects visible to the token along with
-// services, plugins, and environments (ids and names only). It queries across
+// services and environments (ids and names only). It queries across
 // viewer root and team projects and merges results.
 func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]ProjectDetails, error) {
 	if first <= 0 {
@@ -405,11 +394,6 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 				Node ProjectItem `json:"node"`
 			} `json:"edges"`
 		} `json:"services"`
-		Plugins struct {
-			Edges []struct {
-				Node ProjectItem `json:"node"`
-			} `json:"edges"`
-		} `json:"plugins"`
 		Environments struct {
 			Edges []struct {
 				Node struct {
@@ -432,12 +416,6 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 		}
 		for _, se := range p.Services.Edges {
 			pd.Services = append(pd.Services, se.Node)
-		}
-		if pd.Plugins == nil {
-			pd.Plugins = []ProjectItem{}
-		}
-		for _, pe := range p.Plugins.Edges {
-			pd.Plugins = append(pd.Plugins, pe.Node)
 		}
 		if pd.Environments == nil {
 			pd.Environments = []ProjectEnvironment{}
@@ -466,11 +444,6 @@ func (c *Client) ListProjectsWithDetails(ctx context.Context, first int) ([]Proj
 							Node ProjectItem `json:"node"`
 						} `json:"edges"`
 					} `json:"services"`
-					Plugins struct {
-						Edges []struct {
-							Node ProjectItem `json:"node"`
-						} `json:"edges"`
-					} `json:"plugins"`
 					Environments struct {
 						Edges []struct {
 							Node struct {

@@ -27,7 +27,6 @@ import { toast } from "sonner";
 
 export function ProjectCard({ project }: { project: RailwayProjectDetails }) {
   const servicesCount = project.services?.length ?? 0;
-  const pluginsCount = project.plugins?.length ?? 0;
   const environmentsCount = project.environments?.length ?? 0;
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const deleteProject = useDeleteRailwayProject();
@@ -73,10 +72,6 @@ export function ProjectCard({ project }: { project: RailwayProjectDetails }) {
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>services</span>
             <span className="font-medium text-foreground/80">{servicesCount}</span>
-          </div>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>plugins</span>
-            <span className="font-medium text-foreground/80">{pluginsCount}</span>
           </div>
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>environments</span>

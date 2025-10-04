@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type SortBy = "updated" | "created" | "name" | "services" | "plugins" | "environments";
+export type SortBy = "updated" | "created" | "name" | "services" | "environments";
 export type ViewMode = "grid" | "list";
 
 type DashboardState = {

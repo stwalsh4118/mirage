@@ -7,7 +7,7 @@ This document lists the exact GraphQL operations and patterns we use with a work
 - Use root `Query` fields; avoid `me`/`viewer`
 
 ### Core hierarchy
-- Workspace → Project → (Environments, Services, Plugins)
+- Workspace → Project → (Environments, Services)
 
 ### Queries
 - projects(after, before, first, last, includeDeleted, userId, workspaceId)
@@ -31,7 +31,6 @@ This document lists the exact GraphQL operations and patterns we use with a work
 - Expanding project details (relay-style connections on Project):
   - environments(after, before, first, last)
   - services(after, before, first, last)
-  - plugins(...) (note: plugin mutations are deprecated on Railway)
   - Example:
   ```graphql
   query ProjectDetails($id: ID!, $first: Int!) {
@@ -40,7 +39,6 @@ This document lists the exact GraphQL operations and patterns we use with a work
       name
       environments(first: $first) { edges { node { id name } } }
       services(first: $first)     { edges { node { id name icon } } }
-      plugins(first: $first)      { edges { node { id name } } }
     }
   }
   ```
@@ -121,8 +119,8 @@ This document lists the exact GraphQL operations and patterns we use with a work
   }
   ```
 
-#### Plugins (deprecated by Railway)
-- pluginCreate / pluginUpdate / pluginDelete exist but are marked deprecated. Prefer database templates/integrations. Only use if legacy support is required.
+#### Plugins (removed from Railway)
+- Railway has removed plugin support. Use database templates/integrations instead.
 
 ### Pagination pattern
 - All list fields are relay-style: use `after` + `first`, read `pageInfo { endCursor hasNextPage }` and loop until complete.
