@@ -68,6 +68,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
     try {
       let finalProjectId = state.existingProjectId || "";
       let finalEnvironmentId = "";
+      let finalRailwayEnvironmentId = ""; // Track Railway ID separately
 
       // Stage 1: Create Project (if new)
       if (projectSelectionMode === "new") {
@@ -81,7 +82,8 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
 
         setField("createdProjectId", projectResult.projectId);
         finalProjectId = projectResult.projectId;
-        finalEnvironmentId = projectResult.baseEnvironmentId;
+        finalEnvironmentId = projectResult.baseEnvironmentId; // Mirage ID
+        finalRailwayEnvironmentId = projectResult.railwayEnvironmentId; // Railway ID
         
         setStageStatus("creating-project", "success");
       }
@@ -129,7 +131,8 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         });
 
         setField("createdEnvironmentId", envResult.environmentId);
-        finalEnvironmentId = envResult.environmentId;
+        finalEnvironmentId = envResult.environmentId; // Mirage ID
+        finalRailwayEnvironmentId = envResult.railwayEnvironmentId; // Railway ID
         
         setStageStatus("creating-environment", "success");
       }
@@ -249,7 +252,8 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
           const serviceResult = await provisionServices.mutateAsync({
             requestId: requestId!,
             projectId: finalProjectId,
-            environmentId: finalEnvironmentId,
+            environmentId: finalEnvironmentId,                   // Mirage ID for database FK
+            railwayEnvironmentId: finalRailwayEnvironmentId,    // Railway ID for Railway API
             services: [service],
           });
 
