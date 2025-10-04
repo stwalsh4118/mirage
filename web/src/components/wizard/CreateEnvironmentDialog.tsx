@@ -91,10 +91,41 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
         setStageStatus("creating-environment", "running");
         
         const envName = state.environmentName || state.defaultEnvironmentName;
+        
+        // Capture wizard inputs for metadata persistence
+        const wizardInputs: Record<string, unknown> = {
+          sourceType: state.deploymentSource,
+          environmentType: state.templateKind, // dev or prod
+        };
+        
+        // Add source-specific details
+        if (state.deploymentSource === "repository") {
+          wizardInputs.repositoryUrl = state.repositoryUrl;
+          wizardInputs.branch = state.repositoryBranch;
+          if (state.discoveredServices.length > 0 && state.selectedServiceIndices.length > 0) {
+            wizardInputs.discoveredServices = state.selectedServiceIndices.map(idx => ({
+              name: state.serviceNameOverrides[idx] || state.discoveredServices[idx].name,
+              path: state.discoveredServices[idx].buildContext || "/",
+              dockerfilePath: state.discoveredServices[idx].dockerfilePath,
+            }));
+          }
+        } else if (state.deploymentSource === "image") {
+          wizardInputs.dockerImage = state.imageName;
+          wizardInputs.imageRegistry = state.imageRegistry;
+          wizardInputs.imageTag = state.useDigest ? state.imageDigest : state.imageTag;
+        }
+        
+        // Add TTL if set
+        if (state.ttlHours) {
+          wizardInputs.ttl = state.ttlHours;
+        }
+        
         const envResult = await provisionEnvironment.mutateAsync({
           requestId: requestId!,
           projectId: finalProjectId,
           name: envName,
+          envType: state.templateKind as 'dev' | 'prod',
+          wizardInputs,
         });
 
         setField("createdEnvironmentId", envResult.environmentId);
