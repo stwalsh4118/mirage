@@ -16,7 +16,8 @@ import (
 
 // mockRailwayClient implements RailwayServiceClient for testing
 type mockRailwayClient struct {
-	createServiceFunc func(ctx context.Context, in railway.CreateServiceInput) (railway.CreateServiceResult, error)
+	createServiceFunc  func(ctx context.Context, in railway.CreateServiceInput) (railway.CreateServiceResult, error)
+	destroyServiceFunc func(ctx context.Context, in railway.DestroyServiceInput) error
 }
 
 func (m *mockRailwayClient) CreateService(ctx context.Context, in railway.CreateServiceInput) (railway.CreateServiceResult, error) {
@@ -24,6 +25,13 @@ func (m *mockRailwayClient) CreateService(ctx context.Context, in railway.Create
 		return m.createServiceFunc(ctx, in)
 	}
 	return railway.CreateServiceResult{ServiceID: "test-service-id"}, nil
+}
+
+func (m *mockRailwayClient) DestroyService(ctx context.Context, in railway.DestroyServiceInput) error {
+	if m.destroyServiceFunc != nil {
+		return m.destroyServiceFunc(ctx, in)
+	}
+	return nil
 }
 
 func TestProvisionServices_RepoBasedDeployment(t *testing.T) {

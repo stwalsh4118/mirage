@@ -18,6 +18,7 @@ import (
 // RailwayServiceClient defines the interface for Railway service operations needed by the controller.
 type RailwayServiceClient interface {
 	CreateService(ctx context.Context, in railway.CreateServiceInput) (railway.CreateServiceResult, error)
+	DestroyService(ctx context.Context, in railway.DestroyServiceInput) error
 }
 
 // ServicesController handles Railway service provisioning endpoints.
@@ -30,6 +31,7 @@ type ServicesController struct {
 func (c *ServicesController) RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/provision/services", c.ProvisionServices)
 	r.GET("/services/:id", c.GetService)
+	r.DELETE("/railway/service/:id", c.DeleteRailwayService)
 }
 
 // ServiceSpec represents a single service to provision, supporting both
@@ -57,10 +59,11 @@ type ServiceSpec struct {
 
 // ProvisionServicesRequest creates one or more services in a given environment.
 type ProvisionServicesRequest struct {
-	ProjectID     string        `json:"projectId"`
-	EnvironmentID string        `json:"environmentId"`
-	Services      []ServiceSpec `json:"services"`
-	RequestID     string        `json:"requestId"`
+	ProjectID            string        `json:"projectId"`
+	EnvironmentID        string        `json:"environmentId"`        // Mirage internal ID for database FK
+	RailwayEnvironmentID string        `json:"railwayEnvironmentId"` // Railway ID for Railway API calls
+	Services             []ServiceSpec `json:"services"`
+	RequestID            string        `json:"requestId"`
 }
 
 type ProvisionServicesResponse struct {
@@ -92,11 +95,21 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 		}
 	}
 
+	// Determine which environment ID to use for Railway API
+	// If RailwayEnvironmentID is provided, use it; otherwise fall back to EnvironmentID for backward compatibility
+	railwayEnvID := req.RailwayEnvironmentID
+	if railwayEnvID == "" {
+		railwayEnvID = req.EnvironmentID
+		log.Warn().
+			Str("environment_id", req.EnvironmentID).
+			Msg("RailwayEnvironmentID not provided, using EnvironmentID for Railway API (may fail if it's a Mirage ID)")
+	}
+
 	ids := make([]string, 0, len(req.Services))
 	for _, s := range req.Services {
 		input := railway.CreateServiceInput{
 			ProjectID:     req.ProjectID,
-			EnvironmentID: req.EnvironmentID,
+			EnvironmentID: railwayEnvID, // Use Railway environment ID for Railway API
 			Name:          s.Name,
 		}
 
@@ -410,4 +423,47 @@ func serviceModelToServiceDetailDTO(svc store.Service) ServiceDetailDTO {
 	}
 
 	return dto
+}
+
+// DeleteRailwayService deletes a Railway service by its Railway service ID.
+// After successful Railway deletion, cleans up the service record from the database.
+func (c *ServicesController) DeleteRailwayService(ctx *gin.Context) {
+	if c.Railway == nil {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
+		return
+	}
+	railwayServiceID := ctx.Param("id")
+	if railwayServiceID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "service id required"})
+		return
+	}
+
+	// Step 1: Delete from Railway first (fail fast if Railway API fails)
+	log.Info().Str("railway_service_id", railwayServiceID).Msg("deleting railway service")
+	if err := c.Railway.DestroyService(ctx, railway.DestroyServiceInput{ServiceID: railwayServiceID}); err != nil {
+		log.Error().Err(err).Str("railway_service_id", railwayServiceID).Msg("railway delete service failed")
+		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Step 2: Clean up database (Railway deletion succeeded, so clean up our record)
+	if c.DB != nil {
+		// Delete the service from the database
+		result := c.DB.Where("railway_service_id = ?", railwayServiceID).Delete(&store.Service{})
+		if result.Error != nil {
+			log.Error().Err(result.Error).
+				Str("railway_service_id", railwayServiceID).
+				Msg("failed to delete service from database")
+			// Don't fail the request - Railway resource was deleted successfully
+		} else if result.RowsAffected == 0 {
+			log.Warn().Str("railway_service_id", railwayServiceID).Msg("service not found in database")
+		} else {
+			log.Info().
+				Str("railway_service_id", railwayServiceID).
+				Int64("rows_deleted", result.RowsAffected).
+				Msg("deleted service from database")
+		}
+	}
+
+	ctx.Status(http.StatusNoContent)
 }

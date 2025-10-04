@@ -44,7 +44,8 @@ type ProvisionEnvironmentRequest struct {
 }
 
 type ProvisionEnvironmentResponse struct {
-	EnvironmentID string `json:"environmentId"`
+	EnvironmentID        string `json:"environmentId"`        // Mirage internal environment ID
+	RailwayEnvironmentID string `json:"railwayEnvironmentId"` // Railway's environment ID
 }
 
 // ProvisionEnvironment creates a new environment under an existing Railway project.
@@ -66,13 +67,15 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 	}
 
 	// Persist environment to database
+	var env store.Environment
+	var txErr error
 	if c.DB != nil {
 		envType := store.EnvironmentTypeDev // Default to dev
 		if req.EnvType != nil {
 			envType = *req.EnvType
 		}
 
-		env := store.Environment{
+		env = store.Environment{
 			ID:                   uuid.New().String(),
 			Name:                 req.Name,
 			Type:                 envType,
@@ -84,7 +87,7 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 		}
 
 		// Use transaction to ensure Environment and EnvironmentMetadata are created atomically
-		txErr := c.DB.Transaction(func(tx *gorm.DB) error {
+		txErr = c.DB.Transaction(func(tx *gorm.DB) error {
 			if err := tx.Create(&env).Error; err != nil {
 				return err
 			}
@@ -141,7 +144,17 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 		}
 	}
 
-	ctx.JSON(http.StatusOK, ProvisionEnvironmentResponse{EnvironmentID: res.EnvironmentID})
+	// If DB is available and transaction succeeded, return Mirage environment ID
+	// Otherwise fall back to Railway ID
+	mirageEnvID := res.EnvironmentID
+	if c.DB != nil && txErr == nil {
+		mirageEnvID = env.ID
+	}
+
+	ctx.JSON(http.StatusOK, ProvisionEnvironmentResponse{
+		EnvironmentID:        mirageEnvID,       // Mirage ID for foreign keys (or Railway ID if DB unavailable/failed)
+		RailwayEnvironmentID: res.EnvironmentID, // Railway ID for Railway API calls
+	})
 }
 
 // EnvironmentMetadataDTO represents the complete metadata for an environment
