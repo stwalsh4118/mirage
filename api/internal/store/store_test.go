@@ -296,3 +296,445 @@ func TestEnvironment_RailwayProjectID(t *testing.T) {
 		t.Errorf("expected railway environment ID env-456, got %s", retrieved.RailwayEnvironmentID)
 	}
 }
+
+func TestEnvironmentMetadata_CreateWithWizardInputs(t *testing.T) {
+	db, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+
+	// Create a parent environment first
+	env := Environment{
+		ID:        "env-1",
+		Name:      "test-env",
+		Type:      EnvironmentTypeDev,
+		Status:    "active",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(&env).Error; err != nil {
+		t.Fatalf("failed to create environment: %v", err)
+	}
+
+	// Create complex wizard inputs JSON
+	wizardInputs := map[string]interface{}{
+		"step1": map[string]interface{}{
+			"projectName": "my-project",
+			"repository":  "github.com/owner/repo",
+			"branch":      "main",
+		},
+		"step2": map[string]interface{}{
+			"services": []map[string]interface{}{
+				{
+					"name":           "api",
+					"path":           "services/api",
+					"dockerfilePath": "services/api/Dockerfile",
+					"port":           3000,
+				},
+				{
+					"name": "worker",
+					"path": "services/worker",
+				},
+			},
+		},
+		"step3": map[string]interface{}{
+			"environmentType": "dev",
+			"variables": map[string]string{
+				"NODE_ENV":     "development",
+				"DATABASE_URL": "postgres://localhost:5432/mydb",
+			},
+		},
+	}
+	wizardInputsJSON, _ := json.Marshal(wizardInputs)
+
+	// Create provision outputs JSON
+	provisionOutputs := map[string]interface{}{
+		"projectId":     "railway-proj-123",
+		"environmentId": "railway-env-456",
+		"services": []map[string]string{
+			{"name": "api", "serviceId": "railway-svc-789"},
+			{"name": "worker", "serviceId": "railway-svc-abc"},
+		},
+	}
+	provisionOutputsJSON, _ := json.Marshal(provisionOutputs)
+
+	metadata := EnvironmentMetadata{
+		ID:                   "meta-1",
+		EnvironmentID:        "env-1",
+		IsTemplate:           false,
+		WizardInputsJSON:     wizardInputsJSON,
+		ProvisionOutputsJSON: provisionOutputsJSON,
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
+	}
+
+	if err := db.Create(&metadata).Error; err != nil {
+		t.Fatalf("failed to create environment metadata: %v", err)
+	}
+
+	var retrieved EnvironmentMetadata
+	if err := db.First(&retrieved, "id = ?", "meta-1").Error; err != nil {
+		t.Fatalf("failed to retrieve metadata: %v", err)
+	}
+
+	// Verify foreign key
+	if retrieved.EnvironmentID != "env-1" {
+		t.Errorf("expected environment ID env-1, got %s", retrieved.EnvironmentID)
+	}
+
+	// Verify we can unmarshal wizard inputs
+	var retrievedWizardInputs map[string]interface{}
+	if err := json.Unmarshal(retrieved.WizardInputsJSON, &retrievedWizardInputs); err != nil {
+		t.Fatalf("failed to unmarshal wizard inputs: %v", err)
+	}
+
+	step1 := retrievedWizardInputs["step1"].(map[string]interface{})
+	if step1["projectName"] != "my-project" {
+		t.Errorf("expected project name 'my-project', got %v", step1["projectName"])
+	}
+
+	// Verify we can unmarshal provision outputs
+	var retrievedProvisionOutputs map[string]interface{}
+	if err := json.Unmarshal(retrieved.ProvisionOutputsJSON, &retrievedProvisionOutputs); err != nil {
+		t.Fatalf("failed to unmarshal provision outputs: %v", err)
+	}
+
+	if retrievedProvisionOutputs["projectId"] != "railway-proj-123" {
+		t.Errorf("expected project ID 'railway-proj-123', got %v", retrievedProvisionOutputs["projectId"])
+	}
+
+	// Verify timestamps
+	if retrieved.CreatedAt.IsZero() {
+		t.Error("expected non-zero CreatedAt timestamp")
+	}
+	if retrieved.UpdatedAt.IsZero() {
+		t.Error("expected non-zero UpdatedAt timestamp")
+	}
+}
+
+func TestEnvironmentMetadata_QueryByEnvironmentID(t *testing.T) {
+	db, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+
+	// Create parent environment
+	env := Environment{
+		ID:        "env-1",
+		Name:      "test-env",
+		Type:      EnvironmentTypeDev,
+		Status:    "active",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(&env).Error; err != nil {
+		t.Fatalf("failed to create environment: %v", err)
+	}
+
+	// Create metadata
+	metadata := EnvironmentMetadata{
+		ID:                   "meta-1",
+		EnvironmentID:        "env-1",
+		WizardInputsJSON:     []byte("{}"),
+		ProvisionOutputsJSON: []byte("{}"),
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
+	}
+	if err := db.Create(&metadata).Error; err != nil {
+		t.Fatalf("failed to create metadata: %v", err)
+	}
+
+	// Query by environment ID
+	var retrieved EnvironmentMetadata
+	if err := db.Where("environment_id = ?", "env-1").First(&retrieved).Error; err != nil {
+		t.Fatalf("failed to query by environment ID: %v", err)
+	}
+
+	if retrieved.ID != "meta-1" {
+		t.Errorf("expected metadata ID meta-1, got %s", retrieved.ID)
+	}
+}
+
+func TestEnvironmentMetadata_TemplateFields(t *testing.T) {
+	db, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+
+	// Create parent environment
+	env := Environment{
+		ID:        "env-template",
+		Name:      "template-env",
+		Type:      EnvironmentTypeDev,
+		Status:    "active",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(&env).Error; err != nil {
+		t.Fatalf("failed to create environment: %v", err)
+	}
+
+	templateName := "Node.js Microservices Stack"
+	templateDesc := "Complete microservices setup with API, worker, and database"
+
+	metadata := EnvironmentMetadata{
+		ID:                   "meta-template",
+		EnvironmentID:        "env-template",
+		IsTemplate:           true,
+		TemplateName:         &templateName,
+		TemplateDescription:  &templateDesc,
+		WizardInputsJSON:     []byte("{}"),
+		ProvisionOutputsJSON: []byte("{}"),
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
+	}
+
+	if err := db.Create(&metadata).Error; err != nil {
+		t.Fatalf("failed to create template metadata: %v", err)
+	}
+
+	// Query templates
+	var templates []EnvironmentMetadata
+	if err := db.Where("is_template = ?", true).Find(&templates).Error; err != nil {
+		t.Fatalf("failed to query templates: %v", err)
+	}
+
+	if len(templates) != 1 {
+		t.Fatalf("expected 1 template, got %d", len(templates))
+	}
+
+	retrieved := templates[0]
+	if !retrieved.IsTemplate {
+		t.Error("expected IsTemplate to be true")
+	}
+	if retrieved.TemplateName == nil || *retrieved.TemplateName != templateName {
+		t.Errorf("expected template name '%s', got %v", templateName, retrieved.TemplateName)
+	}
+	if retrieved.TemplateDescription == nil || *retrieved.TemplateDescription != templateDesc {
+		t.Errorf("expected template description '%s', got %v", templateDesc, retrieved.TemplateDescription)
+	}
+}
+
+func TestEnvironmentMetadata_ClonedFromEnvID(t *testing.T) {
+	db, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+
+	// Create original environment
+	origEnv := Environment{
+		ID:        "env-original",
+		Name:      "original-env",
+		Type:      EnvironmentTypeDev,
+		Status:    "active",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(&origEnv).Error; err != nil {
+		t.Fatalf("failed to create original environment: %v", err)
+	}
+
+	// Create cloned environment
+	clonedEnv := Environment{
+		ID:        "env-cloned",
+		Name:      "cloned-env",
+		Type:      EnvironmentTypeStaging,
+		Status:    "active",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(&clonedEnv).Error; err != nil {
+		t.Fatalf("failed to create cloned environment: %v", err)
+	}
+
+	clonedFromID := "env-original"
+	metadata := EnvironmentMetadata{
+		ID:                   "meta-cloned",
+		EnvironmentID:        "env-cloned",
+		ClonedFromEnvID:      &clonedFromID,
+		WizardInputsJSON:     []byte("{}"),
+		ProvisionOutputsJSON: []byte("{}"),
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
+	}
+
+	if err := db.Create(&metadata).Error; err != nil {
+		t.Fatalf("failed to create cloned metadata: %v", err)
+	}
+
+	var retrieved EnvironmentMetadata
+	if err := db.First(&retrieved, "id = ?", "meta-cloned").Error; err != nil {
+		t.Fatalf("failed to retrieve metadata: %v", err)
+	}
+
+	if retrieved.ClonedFromEnvID == nil || *retrieved.ClonedFromEnvID != "env-original" {
+		t.Errorf("expected cloned from env ID 'env-original', got %v", retrieved.ClonedFromEnvID)
+	}
+}
+
+func TestEnvironmentMetadata_OptionalFieldsNil(t *testing.T) {
+	db, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+
+	// Create parent environment
+	env := Environment{
+		ID:        "env-1",
+		Name:      "minimal-env",
+		Type:      EnvironmentTypeDev,
+		Status:    "active",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(&env).Error; err != nil {
+		t.Fatalf("failed to create environment: %v", err)
+	}
+
+	// Create metadata with minimal fields
+	metadata := EnvironmentMetadata{
+		ID:                   "meta-minimal",
+		EnvironmentID:        "env-1",
+		IsTemplate:           false,
+		WizardInputsJSON:     []byte("{}"),
+		ProvisionOutputsJSON: []byte("{}"),
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
+	}
+
+	if err := db.Create(&metadata).Error; err != nil {
+		t.Fatalf("failed to create minimal metadata: %v", err)
+	}
+
+	var retrieved EnvironmentMetadata
+	if err := db.First(&retrieved, "id = ?", "meta-minimal").Error; err != nil {
+		t.Fatalf("failed to retrieve metadata: %v", err)
+	}
+
+	// Verify optional fields are nil
+	if retrieved.TemplateName != nil {
+		t.Errorf("expected nil TemplateName, got %v", *retrieved.TemplateName)
+	}
+	if retrieved.TemplateDescription != nil {
+		t.Errorf("expected nil TemplateDescription, got %v", *retrieved.TemplateDescription)
+	}
+	if retrieved.ClonedFromEnvID != nil {
+		t.Errorf("expected nil ClonedFromEnvID, got %v", *retrieved.ClonedFromEnvID)
+	}
+	if retrieved.IsTemplate {
+		t.Error("expected IsTemplate to be false")
+	}
+}
+
+func TestEnvironmentMetadata_ComplexNestedJSON(t *testing.T) {
+	db, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open failed: %v", err)
+	}
+
+	// Create parent environment
+	env := Environment{
+		ID:        "env-1",
+		Name:      "complex-env",
+		Type:      EnvironmentTypeDev,
+		Status:    "active",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := db.Create(&env).Error; err != nil {
+		t.Fatalf("failed to create environment: %v", err)
+	}
+
+	// Create deeply nested complex structure
+	complexInputs := map[string]interface{}{
+		"configuration": map[string]interface{}{
+			"networking": map[string]interface{}{
+				"ports": []int{3000, 8080, 9090},
+				"hostnames": []string{
+					"api.example.com",
+					"worker.example.com",
+				},
+				"ssl": map[string]bool{
+					"enabled":    true,
+					"autoRenew":  true,
+					"forceHTTPS": true,
+				},
+			},
+			"scaling": map[string]interface{}{
+				"min": 1,
+				"max": 10,
+				"targets": map[string]float64{
+					"cpu":    0.7,
+					"memory": 0.8,
+				},
+			},
+		},
+		"services": []map[string]interface{}{
+			{
+				"name": "api",
+				"config": map[string]interface{}{
+					"buildArgs": map[string]string{
+						"NODE_ENV": "production",
+						"VERSION":  "1.2.3",
+					},
+					"healthCheck": map[string]interface{}{
+						"path":     "/health",
+						"interval": 30,
+						"timeout":  10,
+					},
+				},
+			},
+		},
+	}
+	complexInputsJSON, _ := json.Marshal(complexInputs)
+
+	metadata := EnvironmentMetadata{
+		ID:                   "meta-complex",
+		EnvironmentID:        "env-1",
+		WizardInputsJSON:     complexInputsJSON,
+		ProvisionOutputsJSON: []byte("{}"),
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
+	}
+
+	if err := db.Create(&metadata).Error; err != nil {
+		t.Fatalf("failed to create metadata with complex JSON: %v", err)
+	}
+
+	var retrieved EnvironmentMetadata
+	if err := db.First(&retrieved, "id = ?", "meta-complex").Error; err != nil {
+		t.Fatalf("failed to retrieve metadata: %v", err)
+	}
+
+	// Verify complex nested structure is preserved
+	var retrievedInputs map[string]interface{}
+	if err := json.Unmarshal(retrieved.WizardInputsJSON, &retrievedInputs); err != nil {
+		t.Fatalf("failed to unmarshal complex inputs: %v", err)
+	}
+
+	config := retrievedInputs["configuration"].(map[string]interface{})
+	networking := config["networking"].(map[string]interface{})
+	ports := networking["ports"].([]interface{})
+
+	if len(ports) != 3 {
+		t.Errorf("expected 3 ports, got %d", len(ports))
+	}
+
+	ssl := networking["ssl"].(map[string]interface{})
+	if ssl["enabled"] != true {
+		t.Error("expected ssl.enabled to be true")
+	}
+
+	services := retrievedInputs["services"].([]interface{})
+	if len(services) != 1 {
+		t.Fatalf("expected 1 service, got %d", len(services))
+	}
+
+	service := services[0].(map[string]interface{})
+	serviceConfig := service["config"].(map[string]interface{})
+	buildArgs := serviceConfig["buildArgs"].(map[string]interface{})
+
+	if buildArgs["NODE_ENV"] != "production" {
+		t.Errorf("expected NODE_ENV=production, got %v", buildArgs["NODE_ENV"])
+	}
+}

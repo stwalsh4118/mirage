@@ -17,7 +17,7 @@ func Open(sqlitePath string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := db.AutoMigrate(&Environment{}, &Service{}); err != nil {
+	if err := db.AutoMigrate(&Environment{}, &Service{}, &EnvironmentMetadata{}); err != nil {
 		return nil, err
 	}
 	return db, nil
@@ -37,7 +37,7 @@ func OpenFromURL(databaseURL string) (*gorm.DB, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := db.AutoMigrate(&Environment{}, &Service{}); err != nil {
+		if err := db.AutoMigrate(&Environment{}, &Service{}, &EnvironmentMetadata{}); err != nil {
 			return nil, err
 		}
 		return db, nil

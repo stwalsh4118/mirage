@@ -9,7 +9,7 @@ This document lists all tasks associated with PBI 13.
 | Task ID | Name | Status | Description |
 | :------ | :--------------------------------------- | :------- | :--------------------------------- |
 | 13-1 | [Extend Environment and Service models with build configuration fields](./13-1.md) | Done | Add missing fields to existing models and remove unused Template model |
-| 13-2 | [Create EnvironmentMetadata model for wizard inputs and provision outputs](./13-2.md) | Proposed | New model to store complete wizard state and enable cloning/templates |
+| 13-2 | [Create EnvironmentMetadata model for wizard inputs and provision outputs](./13-2.md) | Done | New model to store complete wizard state and enable cloning/templates |
 | 13-3 | [Implement database persistence in provision endpoints](./13-3.md) | Proposed | Add database writes to ProvisionProject, ProvisionEnvironment, and ProvisionServices |
 | 13-4 | [Remove unused CRUD endpoints and clean up dead code](./13-4.md) | Proposed | Delete old Environment CRUD routes that are not used by wizard |
 | 13-5 | [Implement metadata retrieval API endpoints](./13-5.md) | Proposed | Add GET endpoints for retrieving persisted environment and service data |

@@ -1,6 +1,10 @@
 package store
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 type EnvironmentType string
 
@@ -72,4 +76,25 @@ type Service struct {
 	ExposedPortsJSON string  `gorm:"type:text"` // JSON array of port numbers
 	HealthCheckPath  *string `gorm:"type:text"` // Health check endpoint path
 	StartCommand     *string `gorm:"type:text"` // Custom start command
+}
+
+// EnvironmentMetadata stores complete wizard state and provision outputs
+// to enable environment cloning, branch-based deployments, and template creation.
+type EnvironmentMetadata struct {
+	ID            string `gorm:"primaryKey;type:text"`
+	EnvironmentID string `gorm:"index;not null"` // Foreign key to Environment
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+
+	// Template functionality
+	IsTemplate          bool    `gorm:"index;default:false"` // Is this environment a template?
+	TemplateName        *string `gorm:"type:text"`           // Template name (if IsTemplate=true)
+	TemplateDescription *string `gorm:"type:text"`           // Template description
+
+	// Cloning lineage
+	ClonedFromEnvID *string `gorm:"type:text"` // ID of environment this was cloned from
+
+	// Wizard state and provision outputs (stored as JSON for flexibility)
+	WizardInputsJSON     datatypes.JSON `gorm:"type:jsonb"` // Complete wizard state (all inputs from all steps)
+	ProvisionOutputsJSON datatypes.JSON `gorm:"type:jsonb"` // Provision outputs (Railway project/environment/service IDs)
 }
