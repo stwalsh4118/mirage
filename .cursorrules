@@ -295,10 +295,12 @@ Example of the corresponding update in 1-tasks.md:
 - **event_transition on "submit_for_review" from InProgress to Review**:
   1. Ensure all task requirements are met.
   2. Run all relevant tests and ensure they pass.
-  3. Update task documentation with implementation details.
-  4. Create a pull request or mark as ready for review.
-  5. Notify the User that review is needed.
-  6. Log submission for review in task history.
+  3. Run automated code review using `coderabbit review --base main --plain` to perform AI-driven code review.
+  4. Review the coderabbit results and address any critical issues found before proceeding.
+  5. Update task documentation with implementation details.
+  6. Create a pull request or mark as ready for review.
+  7. Notify the User that review is needed, including a summary of the coderabbit review results.
+  8. Log submission for review in task history.
 
 - **event_transition on "approve" from Review to Done**:
   1. Verify all acceptance criteria are met.
