@@ -9,7 +9,7 @@ This document lists all tasks associated with PBI 14.
 | Task ID | Name | Status | Description |
 | :------ | :--------------------------------------- | :------- | :--------------------------------- |
 | 14-0 | [Refactor GraphQL queries to separate .graphql files with embed](./14-0.md) | Done | Extract inline query strings to .graphql files using Go embed pattern |
-| 14-1 | [Research Railway GraphQL log API and create reference guide](./14-1.md) | Proposed | Document Railway's log subscription and query APIs, WebSocket protocol, and authentication |
+| 14-1 | [Research Railway GraphQL log API and create reference guide](./14-1.md) | Done | Document Railway's log subscription and query APIs, WebSocket protocol, and authentication |
 | 14-2 | [Implement Railway log subscription and fetching in Go client](./14-2.md) | Proposed | Add real-time log subscription using hasura/go-graphql-client and historical log queries |
 | 14-3 | [Add log processing utilities for parsing and formatting](./14-3.md) | Proposed | Implement log parsing for structured data, severity detection, ANSI code handling |
 | 14-4 | [Create HTTP API endpoints for log retrieval and export](./14-4.md) | Proposed | Add GET /api/environments/:id/logs and /api/logs/export endpoints with query parameters |
