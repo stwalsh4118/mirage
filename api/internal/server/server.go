@@ -61,6 +61,8 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 		ec.RegisterRoutes(v1)
 		sc := &controller.ServicesController{Railway: rw, DB: db}
 		sc.RegisterRoutes(v1)
+		lc := &controller.LogsController{DB: db, Railway: rw}
+		lc.RegisterRoutes(v1)
 
 		// Initialize Dockerfile scanner for discovery
 		githubToken := os.Getenv("GITHUB_SERVICE_TOKEN")
