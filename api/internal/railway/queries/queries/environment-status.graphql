@@ -1,0 +1,8 @@
+query EnvStatus($environmentId: ID!) {
+  environment(id: $environmentId) {
+    id
+    status
+  }
+}
+
+

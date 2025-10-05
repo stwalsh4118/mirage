@@ -1,0 +1,11 @@
+mutation EnvironmentCreate($projectId: String!, $name: String!) {
+    environmentCreate(input: { projectId: $projectId, name: $name }) {
+        createdAt
+        id
+        name
+        projectId
+        updatedAt
+    }
+}
+
+

@@ -1,0 +1,14 @@
+mutation ProjectCreate($defaultEnvironmentName: String, $name: String) {
+  projectCreate(input: { defaultEnvironmentName: $defaultEnvironmentName, name: $name }) {
+    id
+    name
+    environments {
+      edges {
+        cursor
+        node { id name }
+      }
+    }
+  }
+}
+
+

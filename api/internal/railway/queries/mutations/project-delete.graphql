@@ -1,0 +1,5 @@
+mutation ProjectDelete($projectId: String!) {
+  projectDelete(id: $projectId)
+}
+
+

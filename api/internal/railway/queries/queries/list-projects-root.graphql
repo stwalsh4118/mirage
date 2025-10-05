@@ -1,0 +1,9 @@
+query ListProjects_root($first: Int!) {
+  projects(first: $first) {
+    edges {
+      node { id name }
+    }
+  }
+}
+
+

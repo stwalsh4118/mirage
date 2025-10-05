@@ -1,0 +1,74 @@
+query ProjectDetails($id: ID!) {
+  project(id: $id) {
+    id
+    name
+    services { edges { node { id name } } }
+    environments {
+      edges {
+        node {
+          id
+          name
+          serviceInstances {
+            edges {
+              node {
+                buildCommand
+                builder
+                createdAt
+                cronSchedule
+                deletedAt
+                drainingSeconds
+                environmentId
+                healthcheckPath
+                healthcheckTimeout
+                id
+                isUpdatable
+                nextCronRunAt
+                nixpacksPlan
+                numReplicas
+                overlapSeconds
+                preDeployCommand
+                railpackInfo
+                railwayConfigFile
+                region
+                restartPolicyMaxRetries
+                restartPolicyType
+                rootDirectory
+                serviceId
+                serviceName
+                sleepApplication
+                startCommand
+                updatedAt
+                upstreamUrl
+                watchPatterns
+                source {
+                  image
+                  repo
+                }
+                latestDeployment {
+                  canRedeploy
+                  canRollback
+                  createdAt
+                  deploymentStopped
+                  environmentId
+                  id
+                  meta
+                  projectId
+                  serviceId
+                  snapshotId
+                  staticUrl
+                  status
+                  statusUpdatedAt
+                  suggestAddServiceDomain
+                  updatedAt
+                  url
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+

@@ -1,0 +1,5 @@
+mutation EnvironmentDelete($environmentId: String!) {
+  environmentDelete(id: $environmentId)
+}
+
+

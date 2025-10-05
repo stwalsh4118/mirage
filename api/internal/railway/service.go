@@ -2,6 +2,7 @@ package railway
 
 import (
 	"context"
+	_ "embed"
 )
 
 // RegistryCredentials holds authentication for private container registries.
@@ -34,14 +35,14 @@ type CreateServiceResult struct {
 	ServiceID string `json:"serviceId"`
 }
 
-const serviceCreateMutation = `mutation ServiceCreate($input: ServiceCreateInput!) {
-  serviceCreate(input: $input) {
-    id
-    name
-    projectId
-    updatedAt
-  }
-}`
+// Embedded GraphQL mutations
+var (
+	//go:embed queries/mutations/service-create.graphql
+	serviceCreateMutation string
+
+	//go:embed queries/mutations/service-delete.graphql
+	gqlServiceDelete string
+)
 
 // CreateService executes the serviceCreate mutation.
 // Supports both source repository and Docker image deployments.
@@ -102,9 +103,7 @@ type DestroyServiceInput struct {
 
 // DestroyService removes a service from Railway.
 func (c *Client) DestroyService(ctx context.Context, in DestroyServiceInput) error {
-	mutation := `mutation ServiceDelete($serviceId: String!) {
-  serviceDelete(id: $serviceId)
-}`
+	mutation := gqlServiceDelete
 	vars := map[string]any{
 		"serviceId": in.ServiceID,
 	}

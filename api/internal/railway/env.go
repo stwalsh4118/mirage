@@ -2,6 +2,7 @@ package railway
 
 import (
 	"context"
+	_ "embed"
 
 	"github.com/rs/zerolog/log"
 )
@@ -17,17 +18,21 @@ type CreateEnvironmentResult struct {
 	EnvironmentID string
 }
 
+// Embedded GraphQL operations
+var (
+	//go:embed queries/mutations/environment-create.graphql
+	gqlEnvironmentCreate string
+
+	//go:embed queries/mutations/environment-delete.graphql
+	gqlEnvironmentDelete string
+
+	//go:embed queries/queries/environment-status.graphql
+	gqlEnvironmentStatus string
+)
+
 // CreateEnvironment executes the create environment mutation.
 func (c *Client) CreateEnvironment(ctx context.Context, in CreateEnvironmentInput) (CreateEnvironmentResult, error) {
-	mutation := `mutation EnvironmentCreate($projectId: String!, $name: String!) {
-    environmentCreate(input: { projectId: $projectId, name: $name }) {
-        createdAt
-        id
-        name
-        projectId
-        updatedAt
-    }
-}`
+	mutation := gqlEnvironmentCreate
 
 	vars := map[string]any{
 		"projectId": in.ProjectID,
@@ -55,9 +60,7 @@ type DestroyEnvironmentInput struct {
 
 // DestroyEnvironment removes an environment.
 func (c *Client) DestroyEnvironment(ctx context.Context, in DestroyEnvironmentInput) error {
-	mutation := `mutation EnvironmentDelete($environmentId: String!) {
-  environmentDelete(id: $environmentId)
-}`
+	mutation := gqlEnvironmentDelete
 	vars := map[string]any{
 		"environmentId": in.EnvironmentID,
 	}
@@ -70,12 +73,7 @@ func (c *Client) DestroyEnvironment(ctx context.Context, in DestroyEnvironmentIn
 // GetEnvironmentStatus fetches the current status string for a Railway environment.
 func (c *Client) GetEnvironmentStatus(ctx context.Context, environmentID string) (string, error) {
 	// NOTE: This query is a placeholder and may need adjustment to match Railway's schema.
-	query := `query EnvStatus($environmentId: ID!) {
-  environment(id: $environmentId) {
-    id
-    status
-  }
-}`
+	query := gqlEnvironmentStatus
 	vars := map[string]any{
 		"environmentId": environmentID,
 	}

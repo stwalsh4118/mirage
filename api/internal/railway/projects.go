@@ -2,6 +2,7 @@ package railway
 
 import (
 	"context"
+	_ "embed"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -94,179 +95,27 @@ type ProjectDetails struct {
 
 const (
 	defaultProjectListPageSize = 100
+)
 
-	gqlProjectByID = `
-query Project($id: ID!) {
-  project(id: $id) {
-    id
-    name
-  }
-}
-`
+// Embedded GraphQL queries
+var (
+	//go:embed queries/queries/project-by-id.graphql
+	gqlProjectByID string
 
-	gqlProjectDetailsByID = `
-query ProjectDetails($id: ID!) {
-  project(id: $id) {
-    id
-    name
-    services { edges { node { id name } } }
-    environments {
-      edges {
-        node {
-          id
-          name
-          serviceInstances {
-            edges {
-              node {
-                buildCommand
-                builder
-                createdAt
-                cronSchedule
-                deletedAt
-                drainingSeconds
-                environmentId
-                healthcheckPath
-                healthcheckTimeout
-                id
-                isUpdatable
-                nextCronRunAt
-                nixpacksPlan
-                numReplicas
-                overlapSeconds
-                preDeployCommand
-                railpackInfo
-                railwayConfigFile
-                region
-                restartPolicyMaxRetries
-                restartPolicyType
-                rootDirectory
-                serviceId
-                serviceName
-                sleepApplication
-                startCommand
-                updatedAt
-                upstreamUrl
-                watchPatterns
-                source {
-                  image
-                  repo
-                }
-                latestDeployment {
-                  canRedeploy
-                  canRollback
-                  createdAt
-                  deploymentStopped
-                  environmentId
-                  id
-                  meta
-                  projectId
-                  serviceId
-                  snapshotId
-                  staticUrl
-                  status
-                  statusUpdatedAt
-                  suggestAddServiceDomain
-                  updatedAt
-                  url
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`
+	//go:embed queries/queries/project-details-by-id.graphql
+	gqlProjectDetailsByID string
 
-	gqlListProjectsRoot = `
-query ListProjects_root($first: Int!) {
-  projects(first: $first) {
-    edges {
-      node { id name }
-    }
-  }
-}
-`
+	//go:embed queries/queries/list-projects-root.graphql
+	gqlListProjectsRoot string
 
-	gqlProjectsDetailsRoot = `
-query ProjectsDetails_root($first: Int!) {
-  projects(first: $first) {
-    edges {
-      node {
-        id
-        name
-        services { edges { node { id name } } }
-        environments {
-          edges {
-            node {
-              id
-              name
-              serviceInstances {
-                edges {
-                  node {
-                    buildCommand
-					builder
-					createdAt
-					cronSchedule
-					deletedAt
-					drainingSeconds
-					environmentId
-					healthcheckPath
-					healthcheckTimeout
-					id
-					isUpdatable
-					nextCronRunAt
-					nixpacksPlan
-					numReplicas
-					overlapSeconds
-					preDeployCommand
-					railpackInfo
-					railwayConfigFile
-					region
-					restartPolicyMaxRetries
-					restartPolicyType
-					rootDirectory
-					serviceId
-					serviceName
-					sleepApplication
-					startCommand
-					updatedAt
-					upstreamUrl
-					watchPatterns
-					source {
-						image
-						repo
-					}
-					latestDeployment {
-						canRedeploy
-						canRollback
-						createdAt
-						deploymentStopped
-						environmentId
-						id
-						meta
-						projectId
-						serviceId
-						snapshotId
-						staticUrl
-						status
-						statusUpdatedAt
-						suggestAddServiceDomain
-						updatedAt
-						url
-					}
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-`
+	//go:embed queries/queries/projects-details-root.graphql
+	gqlProjectsDetailsRoot string
+
+	//go:embed queries/mutations/project-create.graphql
+	gqlProjectCreate string
+
+	//go:embed queries/mutations/project-delete.graphql
+	gqlProjectDelete string
 )
 
 // GetProject fetches a single project by ID (id, name only).
@@ -501,18 +350,7 @@ type CreateProjectResult struct {
 
 // CreateProject executes the projectCreate mutation.
 func (c *Client) CreateProject(ctx context.Context, in CreateProjectInput) (CreateProjectResult, error) {
-	mutation := `mutation ProjectCreate($defaultEnvironmentName: String, $name: String) {
-  projectCreate(input: { defaultEnvironmentName: $defaultEnvironmentName, name: $name }) {
-    id
-    name
-    environments {
-      edges {
-        cursor
-        node { id name }
-      }
-    }
-  }
-}`
+	mutation := gqlProjectCreate
 	vars := map[string]any{
 		"defaultEnvironmentName": in.DefaultEnvironmentName,
 		"name":                   in.Name,
@@ -562,9 +400,7 @@ type DestroyProjectInput struct {
 // WARNING: This is a destructive operation that cannot be undone.
 // All environments, services, and data within the project will be deleted.
 func (c *Client) DestroyProject(ctx context.Context, in DestroyProjectInput) error {
-	mutation := `mutation ProjectDelete($projectId: String!) {
-  projectDelete(id: $projectId)
-}`
+	mutation := gqlProjectDelete
 	vars := map[string]any{
 		"projectId": in.ProjectID,
 	}
