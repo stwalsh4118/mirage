@@ -23,6 +23,20 @@ export async function fetchJSON<T>(path: string, init?: RequestInit): Promise<T>
     return (await res.json()) as T;
 }
 
+export async function fetchBlob(path: string, init?: RequestInit): Promise<Blob> {
+    const url = new URL(path, API_BASE_URL).toString();
+    const res = await fetch(url, {
+        ...init,
+        headers: init?.headers,
+        cache: "no-store",
+    });
+    if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`Request failed ${res.status}: ${body}`);
+    }
+    return await res.blob();
+}
+
 export function getHealth(): Promise<HealthResponse> {
     return fetchJSON<HealthResponse>("/api/v1/healthz");
 }
