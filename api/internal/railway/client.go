@@ -10,14 +10,16 @@ import (
 )
 
 const (
-	DefaultEndpoint = "https://backboard.railway.com/graphql/v2"
+	DefaultEndpoint   = "https://backboard.railway.app/graphql/v2"
+	DefaultWSEndpoint = "wss://backboard.railway.app/graphql/internal"
 )
 
 // Client wraps GraphQL calls to Railway with retries and auth.
 type Client struct {
-	endpoint string
-	token    string
-	httpc    *http.Client
+	endpoint   string
+	wsEndpoint string
+	token      string
+	httpc      *http.Client
 }
 
 func NewClient(endpoint, token string, httpc *http.Client) *Client {
@@ -27,7 +29,12 @@ func NewClient(endpoint, token string, httpc *http.Client) *Client {
 	if httpc == nil {
 		httpc = &http.Client{Timeout: 30 * time.Second}
 	}
-	return &Client{endpoint: endpoint, token: token, httpc: httpc}
+	return &Client{
+		endpoint:   endpoint,
+		wsEndpoint: DefaultWSEndpoint,
+		token:      token,
+		httpc:      httpc,
+	}
 }
 
 // execute runs a GraphQL operation with retries on errors within a bounded window.
