@@ -8,6 +8,9 @@ export type LogEntry = {
   rawLine: string;
 };
 
+// Alias for component compatibility
+export type { LogEntry as Log };
+
 export type ServiceLogsResponse = {
   logs: LogEntry[];
   count: number;
