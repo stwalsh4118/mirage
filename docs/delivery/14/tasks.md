@@ -14,7 +14,7 @@ This document lists all tasks associated with PBI 14.
 | 14-3 | [Add log processing utilities for parsing and formatting](./14-3.md) | Done | Implement log parsing for structured data, severity detection, ANSI code handling |
 | 14-4 | [Create HTTP API endpoints for log retrieval and export](./14-4.md) | Done | Add GET /api/environments/:id/logs and /api/logs/export endpoints with query parameters |
 | 14-5 | [Implement WebSocket endpoint for real-time log streaming](./14-5.md) | Done | Relay logs from Railway subscription to frontend clients via WebSocket |
-| 14-6 | [Create LogViewer React component with virtual scrolling](./14-6.md) | Proposed | Build main log display component with virtualization, syntax highlighting, and line numbers |
+| 14-6 | [Create LogViewer React component with virtual scrolling](./14-6.md) | Done | Build main log display component with virtualization, syntax highlighting, and line numbers |
 | 14-7 | [Implement log filtering and search controls UI](./14-7.md) | Proposed | Build filter controls for service, time range, search (regex), and log level |
 | 14-8 | [Add WebSocket client and real-time streaming logic](./14-8.md) | Proposed | Implement WebSocket connection, auto-reconnect, and buffer management in frontend |
 | 14-9 | [Implement log export functionality (JSON, CSV, TXT)](./14-9.md) | Proposed | Add export button with format selection and file download capability |
