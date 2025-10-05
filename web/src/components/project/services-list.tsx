@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DeploymentTypeBadge, type DeploymentType } from "@/components/service/DeploymentTypeBadge"
+import { ServiceLogsDialog } from "@/components/service/ServiceLogsDialog"
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +40,8 @@ interface ServicesListProps {
 export function ServicesList({ services }: ServicesListProps) {
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null)
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null)
+  const [logsServiceId, setLogsServiceId] = useState<string | null>(null)
+  const [logsServiceName, setLogsServiceName] = useState<string>("")
   const deleteService = useDeleteRailwayService()
 
   const handleDeleteService = async () => {
@@ -140,6 +143,15 @@ export function ServicesList({ services }: ServicesListProps) {
         </AlertDialogContent>
       </AlertDialog>
 
+      {logsServiceId && (
+        <ServiceLogsDialog
+          serviceId={logsServiceId}
+          serviceName={logsServiceName}
+          open={!!logsServiceId}
+          onOpenChange={(open) => !open && setLogsServiceId(null)}
+        />
+      )}
+
       <div className="space-y-3">
         {services.map((service) => {
         const deploymentDetails = getDeploymentDetails(service)
@@ -178,7 +190,18 @@ export function ServicesList({ services }: ServicesListProps) {
                 ) : (
                   <Button size="sm">Start</Button>
                 )}
-                <Button variant="ghost" size="sm">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    if (!service.railwayServiceId) {
+                      toast.error("Cannot view logs: Railway service ID not found")
+                      return
+                    }
+                    setLogsServiceId(service.railwayServiceId)
+                    setLogsServiceName(service.name)
+                  }}
+                >
                   Logs
                 </Button>
                 <Button 
