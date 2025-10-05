@@ -1,0 +1,18 @@
+query GetLatestDeployment($serviceId: String!) {
+  service(id: $serviceId) {
+    id
+    name
+    projectId
+    deployments(last: 1) {
+      edges {
+        node {
+          id
+          status
+          createdAt
+          environmentId
+        }
+      }
+    }
+  }
+}
+
