@@ -2,12 +2,15 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/logutil"
@@ -20,18 +23,22 @@ import (
 type RailwayLogsClient interface {
 	GetDeploymentLogs(ctx context.Context, input railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error)
 	GetLatestDeploymentID(ctx context.Context, serviceID string) (string, error)
+	SubscribeToEnvironmentLogs(ctx context.Context, environmentID string, serviceFilter string) (*websocket.Conn, error)
 }
 
 // LogsController handles log retrieval and export endpoints
 type LogsController struct {
-	DB      *gorm.DB
-	Railway RailwayLogsClient
+	DB               *gorm.DB
+	Railway          RailwayLogsClient
+	AllowedOrigins   []string
+	serviceNameCache sync.Map // railwayServiceID (string) -> serviceName (string)
 }
 
 // RegisterRoutes registers log-related routes under the provided router group
 func (c *LogsController) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/services/:id/logs", c.GetServiceLogs)
 	r.GET("/logs/export", c.ExportLogs)
+	r.GET("/environments/:id/logs/stream", c.StreamEnvironmentLogs)
 }
 
 // ParsedLogDTO represents a parsed log entry for API response
@@ -319,4 +326,222 @@ func (c *LogsController) ExportLogs(ctx *gin.Context) {
 		Msg("logs exported successfully")
 
 	ctx.Data(http.StatusOK, contentType, output)
+}
+
+// WebSocket message types
+const (
+	messageTypeLog    = "log"
+	messageTypeStatus = "status"
+	messageTypeError  = "error"
+	messageTypePing   = "ping"
+)
+
+// WebSocketMessage is the standard message format for WebSocket communication
+type WebSocketMessage struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data,omitempty"`
+}
+
+// StreamEnvironmentLogs streams real-time logs from Railway to frontend clients via WebSocket
+// GET /api/v1/environments/:id/logs/stream?services=svc1,svc2
+func (c *LogsController) StreamEnvironmentLogs(ginCtx *gin.Context) {
+	if c.Railway == nil {
+		ginCtx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
+		return
+	}
+
+	// Get environment ID from URL parameter
+	environmentID := ginCtx.Param("id")
+	if environmentID == "" {
+		ginCtx.JSON(http.StatusBadRequest, gin.H{"error": "environment id required"})
+		return
+	}
+
+	// Look up environment to verify it exists
+	var env store.Environment
+	if err := c.DB.Where("railway_environment_id = ?", environmentID).First(&env).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ginCtx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+			return
+		}
+		log.Error().Err(err).Str("environment_id", environmentID).Msg("failed to query environment")
+		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
+		return
+	}
+
+	// Parse optional service filter from query params
+	serviceFilter := ginCtx.Query("services")
+
+	log.Info().
+		Str("environment_id", environmentID).
+		Str("service_filter", serviceFilter).
+		Msg("client connecting to log stream")
+
+	// Get allowed origins from controller config (defaults to wildcard for development)
+	allowedOrigins := c.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"*"} // Fallback for development only
+		log.Warn().Msg("no allowed origins configured for websocket, using wildcard (not recommended for production)")
+	}
+
+	// Upgrade HTTP connection to WebSocket
+	conn, err := websocket.Accept(ginCtx.Writer, ginCtx.Request, &websocket.AcceptOptions{
+		OriginPatterns: allowedOrigins,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to upgrade to websocket")
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
+
+	// Send initial status message
+	if err := c.sendWebSocketMessage(ginCtx, conn, messageTypeStatus, "connected"); err != nil {
+		log.Error().Err(err).Msg("failed to send status message")
+		return
+	}
+
+	// Create context for this connection
+	ctx, cancel := context.WithCancel(ginCtx.Request.Context())
+	defer cancel()
+
+	// Subscribe to Railway logs
+	railwayConn, err := c.Railway.SubscribeToEnvironmentLogs(ctx, environmentID, serviceFilter)
+	if err != nil {
+		log.Error().Err(err).
+			Str("environment_id", environmentID).
+			Msg("failed to subscribe to railway logs")
+		c.sendWebSocketMessage(ginCtx, conn, messageTypeError, fmt.Sprintf("failed to subscribe: %s", err.Error()))
+		return
+	}
+	defer railwayConn.Close(websocket.StatusNormalClosure, "unsubscribing")
+
+	log.Info().
+		Str("environment_id", environmentID).
+		Msg("railway subscription established")
+
+	// Start goroutines for reading from Railway and handling client pings
+	errChan := make(chan error, 2)
+
+	// Goroutine 1: Read from Railway and relay to frontend
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				railwayLog, err := railway.ReadLogMessage(ctx, railwayConn)
+				if err != nil {
+					errChan <- fmt.Errorf("railway read error: %w", err)
+					return
+				}
+
+				// Skip nil messages (non-data messages)
+				if railwayLog == nil {
+					continue
+				}
+
+				// Parse and format the log
+				parsed := logutil.ParseLogLine(railwayLog.Message, "")
+
+				// Use Railway's severity if provided
+				if railwayLog.Severity != "" {
+					parsed.Severity = logutil.NormalizeSeverity(railwayLog.Severity)
+				}
+
+				// Use Railway's timestamp if provided
+				if railwayLog.Timestamp != "" {
+					if ts, err := time.Parse(time.RFC3339Nano, railwayLog.Timestamp); err == nil {
+						parsed.Timestamp = ts
+					}
+				}
+
+				// Get service name from tags if available (with caching)
+				serviceName := "unknown"
+				if railwayLog.Tags != nil {
+					if svcID, ok := railwayLog.Tags["serviceId"]; ok {
+						serviceName = c.getServiceName(svcID)
+					}
+				}
+				parsed.ServiceName = serviceName
+
+				// Send log to frontend client
+				logDTO := ParsedLogDTO{
+					Timestamp:   parsed.Timestamp.Format(time.RFC3339),
+					ServiceName: serviceName,
+					Severity:    parsed.Severity,
+					Message:     parsed.Message,
+					RawLine:     parsed.RawLine,
+				}
+
+				if err := c.sendWebSocketMessage(ctx, conn, messageTypeLog, logDTO); err != nil {
+					errChan <- fmt.Errorf("frontend write error: %w", err)
+					return
+				}
+			}
+		}
+	}()
+
+	// Goroutine 2: Read from frontend (handle pings/pongs and disconnects)
+	go func() {
+		for {
+			_, _, err := conn.Read(ctx)
+			if err != nil {
+				errChan <- fmt.Errorf("frontend read error: %w", err)
+				return
+			}
+			// Client sent a message (probably ping), just acknowledge by continuing
+		}
+	}()
+
+	// Wait for error or context cancellation
+	select {
+	case err := <-errChan:
+		log.Info().Err(err).
+			Str("environment_id", environmentID).
+			Msg("websocket stream ended")
+	case <-ctx.Done():
+		log.Info().
+			Str("environment_id", environmentID).
+			Msg("websocket stream cancelled")
+	}
+}
+
+// getServiceName retrieves service name from cache or database
+// Uses sync.Map for concurrent access without explicit locking
+func (c *LogsController) getServiceName(railwayServiceID string) string {
+	// Check cache first
+	if cachedName, ok := c.serviceNameCache.Load(railwayServiceID); ok {
+		return cachedName.(string)
+	}
+
+	// Query database on cache miss
+	var service store.Service
+	if err := c.DB.Where("railway_service_id = ?", railwayServiceID).First(&service).Error; err != nil {
+		// Don't cache "unknown" to allow retries if service is added later
+		return "unknown"
+	}
+
+	// Store in cache for future lookups
+	c.serviceNameCache.Store(railwayServiceID, service.Name)
+
+	return service.Name
+}
+
+// sendWebSocketMessage sends a typed message to the WebSocket client
+func (c *LogsController) sendWebSocketMessage(ctx context.Context, conn *websocket.Conn, msgType string, data interface{}) error {
+	msg := WebSocketMessage{
+		Type: msgType,
+		Data: data,
+	}
+
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		return fmt.Errorf("marshal message: %w", err)
+	}
+
+	if err := conn.Write(ctx, websocket.MessageText, msgBytes); err != nil {
+		return fmt.Errorf("write message: %w", err)
+	}
+
+	return nil
 }

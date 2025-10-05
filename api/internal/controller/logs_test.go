@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,8 +19,9 @@ import (
 
 // MockRailwayClient implements railway.Client for testing
 type MockRailwayClient struct {
-	GetDeploymentLogsFunc     func(ctx context.Context, input railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error)
-	GetLatestDeploymentIDFunc func(ctx context.Context, serviceID string) (string, error)
+	GetDeploymentLogsFunc          func(ctx context.Context, input railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error)
+	GetLatestDeploymentIDFunc      func(ctx context.Context, serviceID string) (string, error)
+	SubscribeToEnvironmentLogsFunc func(ctx context.Context, environmentID string, serviceFilter string) (*websocket.Conn, error)
 }
 
 func (m *MockRailwayClient) GetDeploymentLogs(ctx context.Context, input railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error) {
@@ -34,6 +36,13 @@ func (m *MockRailwayClient) GetLatestDeploymentID(ctx context.Context, serviceID
 		return m.GetLatestDeploymentIDFunc(ctx, serviceID)
 	}
 	return "mock-deployment-id", nil
+}
+
+func (m *MockRailwayClient) SubscribeToEnvironmentLogs(ctx context.Context, environmentID string, serviceFilter string) (*websocket.Conn, error) {
+	if m.SubscribeToEnvironmentLogsFunc != nil {
+		return m.SubscribeToEnvironmentLogsFunc(ctx, environmentID, serviceFilter)
+	}
+	return nil, nil
 }
 
 // setupTestDB creates an in-memory SQLite database for testing
@@ -396,4 +405,95 @@ func TestExportLogs_MissingServiceId(t *testing.T) {
 	var response map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	assert.Contains(t, response["error"], "serviceId")
+}
+
+func TestStreamEnvironmentLogs_EnvironmentNotFound(t *testing.T) {
+	// Setup test database (empty)
+	db := setupTestDB()
+
+	// Mock Railway client (should not be called)
+	mockRailway := &MockRailwayClient{}
+
+	// Create controller
+	controller := &LogsController{
+		DB:      db,
+		Railway: mockRailway,
+	}
+
+	// Setup Gin
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	controller.RegisterRoutes(router.Group("/api/v1"))
+
+	// Create request with non-existent environment ID
+	req := httptest.NewRequest("GET", "/api/v1/environments/nonexistent/logs/stream", nil)
+	w := httptest.NewRecorder()
+
+	// Execute
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusNotFound, w.Code)
+
+	var response map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	assert.Contains(t, response["error"], "environment not found")
+}
+
+func TestStreamEnvironmentLogs_RailwayClientNotConfigured(t *testing.T) {
+	// Setup test database
+	db := setupTestDB()
+
+	// Create controller WITHOUT Railway client
+	controller := &LogsController{
+		DB:      db,
+		Railway: nil,
+	}
+
+	// Setup Gin
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	controller.RegisterRoutes(router.Group("/api/v1"))
+
+	// Create request
+	req := httptest.NewRequest("GET", "/api/v1/environments/test-env/logs/stream", nil)
+	w := httptest.NewRecorder()
+
+	// Execute
+	router.ServeHTTP(w, req)
+
+	// Assert
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+	var response map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	assert.Contains(t, response["error"], "railway client not configured")
+}
+
+func TestSendWebSocketMessage(t *testing.T) {
+	// This is a simple unit test for the message structure
+	// We can't easily test the actual WebSocket writing without a real connection,
+	// but we can test the message marshaling and unmarshaling
+
+	// Test message marshaling
+	msg := WebSocketMessage{
+		Type: messageTypeLog,
+		Data: ParsedLogDTO{
+			Timestamp:   "2024-01-01T12:00:00Z",
+			ServiceName: "test-api",
+			Severity:    "INFO",
+			Message:     "Test message",
+			RawLine:     "Test message",
+		},
+	}
+
+	msgBytes, err := json.Marshal(msg)
+	require.NoError(t, err)
+	assert.Contains(t, string(msgBytes), `"type":"log"`)
+	assert.Contains(t, string(msgBytes), `"serviceName":"test-api"`)
+
+	// Verify it can be unmarshaled back
+	var decoded WebSocketMessage
+	require.NoError(t, json.Unmarshal(msgBytes, &decoded))
+	assert.Equal(t, messageTypeLog, decoded.Type)
 }
