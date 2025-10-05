@@ -299,7 +299,7 @@ Based on Railway's actual implementation, use the `github.com/coder/websocket` p
 
 ```bash
 go get github.com/coder/websocket@latest
-go get github.com/gofrs/uuid@latest  # For generating subscription IDs
+# Note: google/uuid is already in the project for generating subscription IDs
 ```
 
 Railway's implementation uses `github.com/coder/websocket` (formerly `nhooyr.io/websocket`, now maintained by Coder) directly rather than a higher-level GraphQL client, providing more control over the WebSocket connection and message handling.
@@ -321,7 +321,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/coder/websocket"
 )
 
@@ -839,7 +839,7 @@ Expected response:
 - **graphql-transport-ws Protocol:** https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md
 - **machinebox/graphql:** https://github.com/machinebox/graphql
 - **wscat (WebSocket testing):** https://github.com/websockets/wscat
-- **gofrs/uuid:** https://github.com/gofrs/uuid
+- **google/uuid:** https://github.com/google/uuid
 
 ## Next Steps
 
