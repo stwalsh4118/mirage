@@ -82,11 +82,11 @@ export function LogViewer({
   }
 
   return (
-    <Card className="glass grain flex flex-col h-full">
+    <Card className="glass grain flex flex-col">
       {!hideHeader && (
-        <CardHeader className="pb-2 sm:pb-3 flex-shrink-0 px-3 sm:px-6 pt-3 sm:pt-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0">
-            <CardTitle className="text-sm sm:text-base text-foreground/90">Logs</CardTitle>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-foreground/90">Logs</CardTitle>
             <LogViewerControls
               autoScroll={autoScroll}
               onToggleAutoScroll={onToggleAutoScroll}
@@ -97,26 +97,18 @@ export function LogViewer({
           </div>
         </CardHeader>
       )}
-      <CardContent className="flex-1 flex flex-col min-h-0 p-0">
+      <CardContent className="flex-1 flex flex-col min-h-0">
         {loading && logs.length === 0 ? (
-          <div 
-            className="flex items-center justify-center bg-muted/30 rounded-b-lg border-t border-border/50"
-            style={{ height: maxHeight }}
-          >
+          <div className="flex items-center justify-center h-full min-h-[400px]">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : logs.length === 0 ? (
-          <div 
-            className="flex items-center justify-center bg-muted/30 rounded-b-lg border-t border-border/50"
-            style={{ height: maxHeight }}
-          >
-            <EmptyLogState />
-          </div>
+          <EmptyLogState />
         ) : (
           <div
             ref={parentRef}
             className={cn(
-              "overflow-auto bg-muted/30 rounded-b-lg border-t border-border/50 font-mono text-sm",
+              "overflow-auto bg-muted/30 rounded-lg border border-border/50 font-mono text-sm",
               "scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
             )}
             style={{ height: maxHeight }}
