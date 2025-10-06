@@ -42,8 +42,8 @@ The `variables` field in `ServiceCreateInput` is a map where:
 ```json
 {
   "input": {
-    "projectId": "3146ef85-7eee-43e0-84ad-6175a8616d6e",
-    "environmentId": "0cc779e4-d3af-4622-8590-f386a01d59fb",
+    "projectId": "01234567-89ab-cdef-0123-456789abcdef",
+    "environmentId": "abcdef01-2345-6789-abcd-ef0123456789",
     "name": "api-service",
     "source": {
       "repo": "https://github.com/owner/monorepo"
