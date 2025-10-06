@@ -16,8 +16,8 @@ This document lists all tasks associated with PBI 14.
 | 14-5 | [Implement WebSocket endpoint for real-time log streaming](./14-5.md) | Done | Relay logs from Railway subscription to frontend clients via WebSocket |
 | 14-6 | [Create LogViewer React component with virtual scrolling](./14-6.md) | Done | Build main log display component with virtualization, syntax highlighting, and line numbers |
 | 14-7 | [Implement log filtering and search controls UI](./14-7.md) | Proposed | Build filter controls for service, time range, search (regex), and log level |
-| 14-8 | [Add WebSocket client and real-time streaming logic](./14-8.md) | Proposed | Implement WebSocket connection, auto-reconnect, and buffer management in frontend |
+| 14-8 | [Add WebSocket client and real-time streaming logic](./14-8.md) | Done | Implement WebSocket connection, auto-reconnect, and buffer management in frontend + backend endpoint |
 | 14-9 | [Implement log export functionality (JSON, CSV, TXT)](./14-9.md) | Proposed | Add export button with format selection and file download capability |
-| 14-10 | [Integrate LogViewer into environment detail page](./14-10.md) | Proposed | Add logs tab/section to project-detail.tsx and wire up API calls |
+| 14-10 | [Integrate LogViewer into environment detail page](./14-10.md) | Done | Add logs tab/section to project-detail.tsx and wire up API calls |
 | 14-11 | [E2E CoS Test](./14-11.md) | Proposed | End-to-end testing of log viewing, filtering, search, streaming, and export |
 
