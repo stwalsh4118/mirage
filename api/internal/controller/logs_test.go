@@ -22,6 +22,7 @@ type MockRailwayClient struct {
 	GetDeploymentLogsFunc          func(ctx context.Context, input railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error)
 	GetLatestDeploymentIDFunc      func(ctx context.Context, serviceID string) (string, error)
 	SubscribeToEnvironmentLogsFunc func(ctx context.Context, environmentID string, serviceFilter string) (*websocket.Conn, error)
+	SubscribeToDeploymentLogsFunc  func(ctx context.Context, deploymentID string, filter string) (*websocket.Conn, error)
 }
 
 func (m *MockRailwayClient) GetDeploymentLogs(ctx context.Context, input railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error) {
@@ -41,6 +42,13 @@ func (m *MockRailwayClient) GetLatestDeploymentID(ctx context.Context, serviceID
 func (m *MockRailwayClient) SubscribeToEnvironmentLogs(ctx context.Context, environmentID string, serviceFilter string) (*websocket.Conn, error) {
 	if m.SubscribeToEnvironmentLogsFunc != nil {
 		return m.SubscribeToEnvironmentLogsFunc(ctx, environmentID, serviceFilter)
+	}
+	return nil, nil
+}
+
+func (m *MockRailwayClient) SubscribeToDeploymentLogs(ctx context.Context, deploymentID string, filter string) (*websocket.Conn, error) {
+	if m.SubscribeToDeploymentLogsFunc != nil {
+		return m.SubscribeToDeploymentLogsFunc(ctx, deploymentID, filter)
 	}
 	return nil, nil
 }
@@ -106,8 +114,8 @@ func TestGetServiceLogs_Success(t *testing.T) {
 	router := gin.New()
 	controller.RegisterRoutes(router.Group("/api/v1"))
 
-	// Create request - use Railway service ID in URL
-	req := httptest.NewRequest("GET", "/api/v1/services/railway-service-123/logs?limit=100", nil)
+	// Create request - use Mirage service ID in URL
+	req := httptest.NewRequest("GET", "/api/v1/services/test-service-id/logs?limit=100", nil)
 	w := httptest.NewRecorder()
 
 	// Execute
@@ -183,8 +191,8 @@ func TestGetServiceLogs_InvalidLimit(t *testing.T) {
 	router := gin.New()
 	controller.RegisterRoutes(router.Group("/api/v1"))
 
-	// Create request with invalid limit - use Railway service ID in URL
-	req := httptest.NewRequest("GET", "/api/v1/services/railway-service-123/logs?limit=invalid", nil)
+	// Create request with invalid limit - use Mirage service ID in URL
+	req := httptest.NewRequest("GET", "/api/v1/services/test-service-id/logs?limit=invalid", nil)
 	w := httptest.NewRecorder()
 
 	// Execute

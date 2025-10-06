@@ -24,6 +24,7 @@ type RailwayLogsClient interface {
 	GetDeploymentLogs(ctx context.Context, input railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error)
 	GetLatestDeploymentID(ctx context.Context, serviceID string) (string, error)
 	SubscribeToEnvironmentLogs(ctx context.Context, environmentID string, serviceFilter string) (*websocket.Conn, error)
+	SubscribeToDeploymentLogs(ctx context.Context, deploymentID string, filter string) (*websocket.Conn, error)
 }
 
 // LogsController handles log retrieval and export endpoints
@@ -37,6 +38,7 @@ type LogsController struct {
 // RegisterRoutes registers log-related routes under the provided router group
 func (c *LogsController) RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/services/:id/logs", c.GetServiceLogs)
+	r.GET("/services/:id/logs/stream", c.StreamServiceLogs)
 	r.GET("/logs/export", c.ExportLogs)
 	r.GET("/environments/:id/logs/stream", c.StreamEnvironmentLogs)
 }
@@ -64,21 +66,21 @@ func (c *LogsController) GetServiceLogs(ctx *gin.Context) {
 		return
 	}
 
-	// Get Railway service ID from URL parameter
-	railwayServiceID := ctx.Param("id")
-	if railwayServiceID == "" {
+	// Get Mirage service ID from URL parameter
+	serviceID := ctx.Param("id")
+	if serviceID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "service id required"})
 		return
 	}
 
-	// Look up service in database by Railway service ID
+	// Look up service in database by Mirage ID
 	var service store.Service
-	if err := c.DB.Where("railway_service_id = ?", railwayServiceID).First(&service).Error; err != nil {
+	if err := c.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
 			return
 		}
-		log.Error().Err(err).Str("railway_service_id", railwayServiceID).Msg("failed to query service")
+		log.Error().Err(err).Str("service_id", serviceID).Msg("failed to query service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve service"})
 		return
 	}
@@ -117,7 +119,8 @@ func (c *LogsController) GetServiceLogs(ctx *gin.Context) {
 	}
 
 	log.Info().
-		Str("railway_service_id", railwayServiceID).
+		Str("service_id", serviceID).
+		Str("railway_service_id", service.RailwayServiceID).
 		Str("service_name", service.Name).
 		Str("deployment_id", deploymentID).
 		Int("limit", limit).
@@ -525,6 +528,189 @@ func (c *LogsController) getServiceName(railwayServiceID string) string {
 	c.serviceNameCache.Store(railwayServiceID, service.Name)
 
 	return service.Name
+}
+
+// StreamServiceLogs streams real-time logs from a specific service's deployment to frontend clients via WebSocket
+// GET /api/v1/services/:id/logs/stream?search=error
+func (c *LogsController) StreamServiceLogs(ginCtx *gin.Context) {
+	if c.Railway == nil {
+		ginCtx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
+		return
+	}
+
+	// Get Mirage service ID from URL parameter
+	serviceID := ginCtx.Param("id")
+	if serviceID == "" {
+		ginCtx.JSON(http.StatusBadRequest, gin.H{"error": "service id required"})
+		return
+	}
+
+	// Look up service in database by Mirage ID
+	var service store.Service
+	if err := c.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ginCtx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+			return
+		}
+		log.Error().Err(err).Str("service_id", serviceID).Msg("failed to query service")
+		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve service"})
+		return
+	}
+
+	// Get latest deployment ID for the service
+	deploymentID, err := c.Railway.GetLatestDeploymentID(ginCtx, service.RailwayServiceID)
+	if err != nil {
+		log.Error().Err(err).Str("railway_service_id", service.RailwayServiceID).Msg("failed to get latest deployment")
+		ginCtx.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("failed to get deployment: %s", err.Error())})
+		return
+	}
+
+	// Parse optional search filter from query params
+	searchFilter := ginCtx.Query("search")
+
+	log.Info().
+		Str("mirage_service_id", serviceID).
+		Str("railway_service_id", service.RailwayServiceID).
+		Str("service_name", service.Name).
+		Str("deployment_id", deploymentID).
+		Str("search_filter", searchFilter).
+		Msg("client connecting to service log stream")
+
+	// Get allowed origins from controller config (defaults to wildcard for development)
+	allowedOrigins := c.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"*"} // Fallback for development only
+		log.Warn().Msg("no allowed origins configured for websocket, using wildcard (not recommended for production)")
+	}
+
+	// Upgrade HTTP connection to WebSocket
+	conn, err := websocket.Accept(ginCtx.Writer, ginCtx.Request, &websocket.AcceptOptions{
+		OriginPatterns: allowedOrigins,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to upgrade to websocket")
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
+
+	// Send initial status message
+	if err := c.sendWebSocketMessage(ginCtx, conn, messageTypeStatus, "connected"); err != nil {
+		log.Error().Err(err).Msg("failed to send status message")
+		return
+	}
+
+	// Create context for this connection
+	ctx, cancel := context.WithCancel(ginCtx.Request.Context())
+	defer cancel()
+
+	// Subscribe to Railway deployment logs
+	railwayConn, err := c.Railway.SubscribeToDeploymentLogs(ctx, deploymentID, searchFilter)
+	if err != nil {
+		log.Error().Err(err).
+			Str("deployment_id", deploymentID).
+			Msg("failed to subscribe to railway deployment logs")
+		c.sendWebSocketMessage(ginCtx, conn, messageTypeError, fmt.Sprintf("failed to subscribe: %s", err.Error()))
+		return
+	}
+	defer railwayConn.Close(websocket.StatusNormalClosure, "unsubscribing")
+
+	log.Info().
+		Str("deployment_id", deploymentID).
+		Str("service_name", service.Name).
+		Msg("railway deployment logs subscription established")
+
+	// Start goroutines for reading from Railway and handling client pings
+	errChan := make(chan error, 2)
+
+	// Goroutine 1: Read from Railway and relay to frontend
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// Read log messages from Railway (returns an array)
+				railwayLogs, err := railway.ReadDeploymentLogMessage(ctx, railwayConn)
+				if err != nil {
+					errChan <- fmt.Errorf("read railway message: %w", err)
+					return
+				}
+
+				// Skip non-log messages (status, ack, etc.)
+				if railwayLogs == nil {
+					continue
+				}
+
+				// Process each log in the batch
+				for _, railwayLog := range railwayLogs {
+					// Parse the log line
+					parsed := logutil.ParseLogLine(railwayLog.Message, service.Name)
+
+					// Use Railway's severity if provided, otherwise use detected severity
+					if railwayLog.Severity != "" {
+						parsed.Severity = logutil.NormalizeSeverity(railwayLog.Severity)
+					}
+
+					// Use Railway's timestamp if provided
+					if railwayLog.Timestamp != "" {
+						if ts, err := time.Parse(time.RFC3339Nano, railwayLog.Timestamp); err == nil {
+							parsed.Timestamp = ts
+						}
+					}
+
+					// Create log DTO for frontend
+					logDTO := ParsedLogDTO{
+						Timestamp:   parsed.Timestamp.Format(time.RFC3339),
+						ServiceName: service.Name,
+						Severity:    parsed.Severity,
+						Message:     parsed.Message,
+						RawLine:     parsed.RawLine,
+					}
+
+					// Send log to frontend client
+					if err := c.sendWebSocketMessage(ctx, conn, messageTypeLog, logDTO); err != nil {
+						errChan <- fmt.Errorf("send to frontend: %w", err)
+						return
+					}
+				}
+			}
+		}
+	}()
+
+	// Goroutine 2: Read from frontend (for ping/disconnect detection)
+	go func() {
+		for {
+			_, _, err := conn.Read(ctx)
+			if err != nil {
+				errChan <- fmt.Errorf("read from frontend: %w", err)
+				return
+			}
+			// Client sent a message (likely a ping) - no action needed
+		}
+	}()
+
+	// Wait for error or context cancellation
+	select {
+	case err := <-errChan:
+		// Check if this is a normal client disconnect or actual error
+		if err != nil && (err.Error() == "read from frontend: failed to get reader: received close frame: status = StatusNormalClosure and reason = \"Client disconnect\"" ||
+			strings.Contains(err.Error(), "StatusNormalClosure")) {
+			log.Info().
+				Str("deployment_id", deploymentID).
+				Str("service_name", service.Name).
+				Msg("websocket stream closed normally by client")
+		} else {
+			log.Info().Err(err).
+				Str("deployment_id", deploymentID).
+				Str("service_name", service.Name).
+				Msg("websocket stream ended with error")
+		}
+	case <-ctx.Done():
+		log.Info().
+			Str("deployment_id", deploymentID).
+			Str("service_name", service.Name).
+			Msg("websocket stream cancelled")
+	}
 }
 
 // sendWebSocketMessage sends a typed message to the WebSocket client
