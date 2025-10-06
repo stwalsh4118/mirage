@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -8,11 +8,15 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Download, Search, RefreshCw, Loader2, ArrowDown } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import { Download, Search, RefreshCw, Loader2, ArrowDown, Radio } from "lucide-react"
 import { toast } from "sonner"
 import { useServiceLogs } from "@/hooks/useLogs"
+import { useLogStream } from "@/hooks/useLogStream"
 import { exportServiceLogs, type ExportFormat } from "@/lib/api/logs"
 import { LogViewer } from "@/components/logs/LogViewer"
+import { StreamStatus } from "@/components/logs/StreamStatus"
 
 interface ServiceLogsDialogProps {
   serviceId: string
@@ -26,17 +30,43 @@ export function ServiceLogsDialog({ serviceId, serviceName, open, onOpenChange }
   const [searchInput, setSearchInput] = useState("")
   const [limit, setLimit] = useState(100)
   const [followLogs, setFollowLogs] = useState(false)
+  const [useStreaming, setUseStreaming] = useState(false)
 
+  // Auto-enable follow logs when streaming is enabled
+  useEffect(() => {
+    if (useStreaming) {
+      setFollowLogs(true)
+    }
+  }, [useStreaming])
+
+  // Historical logs (fetched)
   const { data, isLoading, refetch } = useServiceLogs(
     {
       serviceId,
       limit,
       search: searchQuery,
     },
-    open
+    open && !useStreaming
   )
 
-  const logs = data?.logs || []
+  // Real-time logs (streamed) - memoize options to prevent unnecessary reconnections
+  const streamOptions = useMemo(() => ({
+    serviceId,
+    enabled: open && useStreaming,
+    filters: {
+      search: searchQuery,
+    },
+  }), [serviceId, open, useStreaming, searchQuery])
+
+  const { 
+    logs: streamedLogs, 
+    status: streamStatus, 
+    error: streamError, 
+    connect: reconnect,
+    clear: clearStream 
+  } = useLogStream(streamOptions)
+
+  const logs = useStreaming ? streamedLogs : (data?.logs || [])
 
   const handleSearch = () => {
     setSearchQuery(searchInput)
@@ -70,11 +100,21 @@ export function ServiceLogsDialog({ serviceId, serviceName, open, onOpenChange }
             <span className="text-xs text-muted-foreground font-mono">
               {logs.length} logs
             </span>
+            {useStreaming && (
+              <StreamStatus status={streamStatus} error={streamError} onRetry={reconnect} />
+            )}
           </div>
           <div className="flex gap-1.5 items-center mr-8">
-            <Button onClick={() => refetch()} disabled={isLoading} variant="ghost" size="sm" className="h-7 px-2">
-              {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            </Button>
+            {!useStreaming && (
+              <Button onClick={() => refetch()} disabled={isLoading} variant="ghost" size="sm" className="h-7 px-2">
+                {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              </Button>
+            )}
+            {useStreaming && (
+              <Button onClick={clearStream} variant="ghost" size="sm" className="h-7 px-2">
+                Clear
+              </Button>
+            )}
             <Button 
               onClick={() => setFollowLogs(!followLogs)} 
               variant={followLogs ? "default" : "ghost"}
@@ -99,6 +139,18 @@ export function ServiceLogsDialog({ serviceId, serviceName, open, onOpenChange }
         </div>
 
         <div className="flex gap-2 items-center flex-shrink-0">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-md border border-border/50">
+            <Radio className={`h-3.5 w-3.5 ${useStreaming ? 'text-green-500' : 'text-muted-foreground'}`} />
+            <Label htmlFor="streaming-mode" className="text-xs font-medium cursor-pointer">
+              Live Stream
+            </Label>
+            <Switch
+              id="streaming-mode"
+              checked={useStreaming}
+              onCheckedChange={setUseStreaming}
+              className="scale-75"
+            />
+          </div>
           <div className="flex-1 relative">
             <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
@@ -114,7 +166,7 @@ export function ServiceLogsDialog({ serviceId, serviceName, open, onOpenChange }
         <div className="flex-1 min-h-0">
           <LogViewer 
             logs={logs} 
-            loading={isLoading}
+            loading={!useStreaming && isLoading}
             searchQuery={searchQuery}
             autoScroll={followLogs}
             onToggleAutoScroll={() => setFollowLogs(!followLogs)}

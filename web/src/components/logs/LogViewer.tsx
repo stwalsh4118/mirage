@@ -36,10 +36,19 @@ export function LogViewer({
 
   // Auto-scroll to bottom when new logs arrive (if auto-scroll is enabled and user hasn't manually scrolled)
   useEffect(() => {
-    if (autoScroll && !userScrolled && parentRef.current) {
-      parentRef.current.scrollTop = parentRef.current.scrollHeight
+    if (autoScroll && !userScrolled && parentRef.current && logs.length > 0) {
+      // Use double RAF to ensure virtualizer has measured and rendered
+      // First RAF: Let React commit the changes
+      requestAnimationFrame(() => {
+        // Second RAF: Let the browser paint before scrolling
+        requestAnimationFrame(() => {
+          if (parentRef.current) {
+            parentRef.current.scrollTop = parentRef.current.scrollHeight
+          }
+        })
+      })
     }
-  }, [logs, autoScroll, userScrolled])
+  }, [logs.length, autoScroll, userScrolled, logs])
 
   // Reset userScrolled when auto-scroll is toggled on
   useEffect(() => {
