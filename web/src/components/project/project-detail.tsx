@@ -177,7 +177,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ServicesList services={selectedEnv.services} />
+                <ServicesList 
+                  services={selectedEnv.services} 
+                  mirageServices={serviceBuildConfigs}
+                />
               </CardContent>
             </Card>
           )}

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Trash2 } from "lucide-react"
 import { useDeleteRailwayService } from "@/hooks/useRailway"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { toast } from "sonner"
 
 interface Service {
@@ -35,9 +35,21 @@ interface Service {
 
 interface ServicesListProps {
   services: Service[]
+  // Mirage services for mapping Railway service ID → Mirage ID
+  mirageServices?: Array<{ id: string; railwayServiceId?: string }>
 }
 
-export function ServicesList({ services }: ServicesListProps) {
+export function ServicesList({ services, mirageServices = [] }: ServicesListProps) {
+  // Create a mapping from Railway service ID to Mirage service ID
+  const railwayToMirageIdMap = useMemo(() => {
+    const map = new Map<string, string>()
+    mirageServices.forEach(ms => {
+      if (ms.railwayServiceId) {
+        map.set(ms.railwayServiceId, ms.id)
+      }
+    })
+    return map
+  }, [mirageServices])
   const [deletingServiceId, setDeletingServiceId] = useState<string | null>(null)
   const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null)
   const [logsServiceId, setLogsServiceId] = useState<string | null>(null)
@@ -194,11 +206,16 @@ export function ServicesList({ services }: ServicesListProps) {
                   variant="ghost" 
                   size="sm"
                   onClick={() => {
-                    if (!service.railwayServiceId) {
-                      toast.error("Cannot view logs: Railway service ID not found")
+                    // Get Mirage service ID from Railway service ID
+                    const mirageServiceId = service.railwayServiceId 
+                      ? railwayToMirageIdMap.get(service.railwayServiceId)
+                      : undefined
+                    
+                    if (!mirageServiceId) {
+                      toast.error("Cannot view logs: Service not found in database")
                       return
                     }
-                    setLogsServiceId(service.railwayServiceId)
+                    setLogsServiceId(mirageServiceId)
                     setLogsServiceName(service.name)
                   }}
                 >
