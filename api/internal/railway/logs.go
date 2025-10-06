@@ -14,6 +14,9 @@ import (
 //go:embed queries/subscriptions/environment-logs.graphql
 var environmentLogsSubscription string
 
+//go:embed queries/subscriptions/deployment-logs.graphql
+var deploymentLogsSubscription string
+
 //go:embed queries/queries/deployment-logs.graphql
 var deploymentLogsQuery string
 
@@ -66,7 +69,7 @@ func (c *Client) SubscribeToEnvironmentLogs(
 	return c.createWebSocketSubscription(ctx, payload)
 }
 
-// ReadLogMessage reads and parses a log message from the WebSocket
+// ReadLogMessage reads and parses an environment log message from the WebSocket
 func ReadLogMessage(ctx context.Context, conn *websocket.Conn) (*EnvironmentLog, error) {
 	_, data, err := conn.Read(ctx)
 	if err != nil {
@@ -92,6 +95,66 @@ func ReadLogMessage(ctx context.Context, conn *websocket.Conn) (*EnvironmentLog,
 	}
 
 	return &msg.Payload.Data.EnvironmentLogs, nil
+}
+
+// DeploymentLogsSubscriptionVariables matches Railway's expected structure for deployment logs
+type DeploymentLogsSubscriptionVariables struct {
+	DeploymentID string `json:"deploymentId"`
+	Limit        int    `json:"limit,omitempty"`
+	Filter       string `json:"filter,omitempty"`
+}
+
+// DeploymentLogsSubscriptionPayload is the GraphQL subscription payload
+type DeploymentLogsSubscriptionPayload struct {
+	Query     string                               `json:"query"`
+	Variables *DeploymentLogsSubscriptionVariables `json:"variables"`
+}
+
+// SubscribeToDeploymentLogs creates a deployment logs subscription
+func (c *Client) SubscribeToDeploymentLogs(
+	ctx context.Context,
+	deploymentID string,
+	filter string,
+) (*websocket.Conn, error) {
+	payload := &DeploymentLogsSubscriptionPayload{
+		Query: deploymentLogsSubscription,
+		Variables: &DeploymentLogsSubscriptionVariables{
+			DeploymentID: deploymentID,
+			Limit:        500, // Get recent logs on connect
+			Filter:       filter,
+		},
+	}
+
+	return c.createWebSocketSubscription(ctx, payload)
+}
+
+// ReadDeploymentLogMessage reads and parses deployment log messages from the WebSocket
+// Railway sends an array of logs in each message, not individual logs
+func ReadDeploymentLogMessage(ctx context.Context, conn *websocket.Conn) ([]DeploymentLog, error) {
+	_, data, err := conn.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read websocket: %w", err)
+	}
+
+	var msg struct {
+		Type    string `json:"type"`
+		ID      string `json:"id"`
+		Payload struct {
+			Data struct {
+				DeploymentLogs []DeploymentLog `json:"deploymentLogs"`
+			} `json:"data"`
+		} `json:"payload"`
+	}
+
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return nil, fmt.Errorf("unmarshal message: %w", err)
+	}
+
+	if msg.Type != "next" {
+		return nil, nil // Skip non-data messages
+	}
+
+	return msg.Payload.Data.DeploymentLogs, nil
 }
 
 // GetDeploymentLogsInput defines parameters for fetching historical deployment logs

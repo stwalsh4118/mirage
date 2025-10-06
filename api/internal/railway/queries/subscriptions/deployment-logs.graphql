@@ -1,0 +1,28 @@
+subscription StreamDeploymentLogs(
+  $deploymentId: String!
+  $limit: Int
+  $filter: String
+) {
+  deploymentLogs(
+    deploymentId: $deploymentId
+    limit: $limit
+    filter: $filter
+  ) {
+    timestamp
+    message
+    severity
+    tags {
+      deploymentId
+      deploymentInstanceId
+      environmentId
+      pluginId
+      projectId
+      serviceId
+      snapshotId
+    }
+    attributes {
+      key
+      value
+    }
+  }
+}
