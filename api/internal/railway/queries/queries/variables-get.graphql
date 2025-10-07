@@ -1,0 +1,4 @@
+query Variables($projectId: String!, $environmentId: String!, $serviceId: String) {
+  variables(projectId: $projectId, environmentId: $environmentId, serviceId: $serviceId)
+}
+
