@@ -151,6 +151,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 environment={environment}
                 isSelected={selectedEnvironment === environment.id}
                 onSelect={() => setSelectedEnvironment(selectedEnvironment === environment.id ? null : environment.id)}
+                projectId={project?.id}
               />
             ))}
           </div>
