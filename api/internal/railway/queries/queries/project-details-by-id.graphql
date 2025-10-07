@@ -1,4 +1,4 @@
-query ProjectDetails($id: ID!) {
+query ProjectDetails($id: String!) {
   project(id: $id) {
     id
     name
