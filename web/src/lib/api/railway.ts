@@ -308,3 +308,61 @@ export type TemplateListItem = {
 export function listTemplates(): Promise<TemplateListItem[]> {
   return fetchJSON<TemplateListItem[]>(`/api/v1/templates`);
 }
+
+// Environment Snapshot Types
+export type ServiceVariablesSnapshot = {
+  serviceId: string;
+  serviceName: string;
+  variables: Record<string, string>;
+};
+
+export type EnvironmentSnapshot = {
+  environment: {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    sourceRepo: string;
+    sourceBranch: string;
+    sourceCommit: string;
+    railwayProjectId: string;
+    railwayEnvironmentId: string;
+    ttlSeconds?: number;
+    parentEnvironmentId?: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+  services: Array<{
+    id: string;
+    environmentId: string;
+    name: string;
+    path: string;
+    status: string;
+    railwayServiceId: string;
+    deploymentType: 'source_repo' | 'docker_image';
+    sourceRepo: string;
+    sourceBranch: string;
+    dockerfilePath?: string;
+    buildContext?: string;
+    rootDirectory?: string;
+    targetStage?: string;
+    dockerImage: string;
+    imageRegistry: string;
+    imageName: string;
+    imageTag: string;
+    imageDigest: string;
+    imageAuthStored: boolean;
+    exposedPortsJson: string;
+    healthCheckPath?: string;
+    startCommand?: string;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  environmentVariables: Record<string, string>;
+  serviceVariables: ServiceVariablesSnapshot[];
+};
+
+// Get environment snapshot for cloning
+export function getEnvironmentSnapshot(environmentId: string): Promise<EnvironmentSnapshot> {
+  return fetchJSON<EnvironmentSnapshot>(`/api/v1/environments/${environmentId}/snapshot`);
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment, deleteRailwayProject, deleteRailwayService, getEnvironmentMetadata, EnvironmentMetadata, getEnvironmentServices, ServiceBuildConfig, getServiceDetails, listTemplates, TemplateListItem } from "@/lib/api/railway";
+import { listRailwayProjectsByNames, RailwayProject, listRailwayProjectsDetails, RailwayProjectDetails, importRailwayEnvironments, ImportRailwayEnvsRequest, ImportRailwayEnvsResponse, provisionProject, ProvisionProjectRequest, ProvisionProjectResponse, provisionEnvironment, ProvisionEnvironmentRequest, ProvisionEnvironmentResponse, provisionServices, ProvisionServicesRequest, ProvisionServicesResponse, deleteRailwayEnvironment, deleteRailwayProject, deleteRailwayService, getEnvironmentMetadata, EnvironmentMetadata, getEnvironmentServices, ServiceBuildConfig, getServiceDetails, listTemplates, TemplateListItem, getEnvironmentSnapshot, EnvironmentSnapshot } from "@/lib/api/railway";
 
 const RAILWAY_POLL_INTERVAL_MS = 30_000;
 
@@ -140,5 +140,17 @@ export function useTemplates() {
   return useQuery<TemplateListItem[]>({
     queryKey: ["templates"],
     queryFn: () => listTemplates(),
+  });
+}
+
+export function useEnvironmentSnapshot(environmentId: string | null) {
+  return useQuery<EnvironmentSnapshot>({
+    queryKey: ["environment-snapshot", environmentId],
+    queryFn: () => {
+      if (!environmentId) throw new Error("Environment ID is required");
+      return getEnvironmentSnapshot(environmentId);
+    },
+    enabled: !!environmentId,
+    retry: false, // Don't retry on errors (snapshot might not exist)
   });
 }
