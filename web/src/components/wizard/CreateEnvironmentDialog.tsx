@@ -8,12 +8,52 @@ import { WizardFooter } from "@/components/wizard/WizardFooter";
 import { ProvisionProgress } from "@/components/wizard/ProvisionProgress";
 import { useWizardStore } from "@/store/wizard";
 import { StepProject, StepSource, StepDiscovery, StepConfig, StepReview } from "./steps";
-import { useProvisionEnvironment, useProvisionProject, useProvisionServices } from "@/hooks/useRailway";
+import { useProvisionEnvironment, useProvisionProject, useProvisionServices, useEnvironmentSnapshot } from "@/hooks/useRailway";
 import { generateUniqueServiceName } from "@/lib/serviceNaming";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 const DEFAULT_SERVICE_NAME = "web-app";
 
-export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
+// Railway system variables that are automatically injected and should not be cloned
+// These are either set by Railway itself or by the Mirage backend during provisioning
+const RAILWAY_SYSTEM_VARIABLES = new Set([
+  'RAILWAY_ENVIRONMENT',
+  'RAILWAY_ENVIRONMENT_ID',
+  'RAILWAY_ENVIRONMENT_NAME',
+  'RAILWAY_PRIVATE_DOMAIN',
+  'RAILWAY_PROJECT_ID',
+  'RAILWAY_PROJECT_NAME',
+  'RAILWAY_SERVICE_ID',
+  'RAILWAY_SERVICE_NAME',
+  'RAILWAY_DOCKERFILE_PATH', // Injected by Mirage backend from dockerfilePath config
+  'RAILWAY_STATIC_URL',
+  'RAILWAY_PUBLIC_DOMAIN',
+  'RAILWAY_GIT_COMMIT_SHA',
+  'RAILWAY_GIT_AUTHOR',
+  'RAILWAY_GIT_BRANCH',
+  'RAILWAY_GIT_REPO_NAME',
+  'RAILWAY_GIT_REPO_OWNER',
+  'RAILWAY_GIT_COMMIT_MESSAGE',
+  'RAILWAY_DEPLOYMENT_ID',
+  'RAILWAY_SNAPSHOT_ID',
+  'RAILWAY_REPLICA_ID',
+  'RAILWAY_SERVICE_ICON',
+]);
+
+interface CreateEnvironmentDialogProps {
+  trigger?: React.ReactNode;
+  defaultSourceMode?: 'new' | 'clone';
+  defaultCloneSourceId?: string;
+  defaultProjectId?: string;
+}
+
+export function CreateEnvironmentDialog({ 
+  trigger, 
+  defaultSourceMode,
+  defaultCloneSourceId,
+  defaultProjectId
+}: CreateEnvironmentDialogProps) {
   const [open, setOpen] = useState(false);
   
   const {
@@ -25,6 +65,8 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
     isProvisioning,
     currentStage,
     requestId,
+    sourceMode,
+    cloneSourceEnvId,
     setField,
     setStageStatus,
     setServiceProgress,
@@ -35,6 +77,104 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
   const provisionProject = useProvisionProject();
   const provisionEnvironment = useProvisionEnvironment();
   const provisionServices = useProvisionServices();
+  
+  // Fetch snapshot when cloning from an environment
+  const snapshot = useEnvironmentSnapshot(sourceMode === 'clone' ? cloneSourceEnvId : null);
+
+
+  // Set default source mode, clone source, and project when dialog opens
+  useEffect(() => {
+    if (open && defaultSourceMode) {
+      setField('sourceMode', defaultSourceMode);
+    }
+    if (open && defaultCloneSourceId) {
+      setField('cloneSourceEnvId', defaultCloneSourceId);
+    }
+    if (open && defaultProjectId) {
+      setField('existingProjectId', defaultProjectId);
+      setField('projectSelectionMode', 'existing');
+    }
+  }, [open, defaultSourceMode, defaultCloneSourceId, defaultProjectId, setField]);
+
+  // Pre-populate wizard when snapshot data arrives
+  useEffect(() => {
+    if (snapshot.data && sourceMode === 'clone') {
+      const { environment, services, environmentVariables, serviceVariables } = snapshot.data;
+      
+      console.log('Pre-populating wizard from snapshot', { environment, services, environmentVariables, serviceVariables });
+      
+      // Project step: use source's project
+      setField('existingProjectId', environment.railwayProjectId);
+      setField('projectSelectionMode', 'existing');
+      
+      // Source step: pre-fill based on first service's deployment type
+      if (services.length > 0) {
+        const firstService = services[0];
+        
+        if (firstService.deploymentType === 'source_repo' && firstService.sourceRepo) {
+          setField('deploymentSource', 'repository');
+          setField('repositoryUrl', firstService.sourceRepo);
+          setField('repositoryBranch', firstService.sourceBranch || 'main');
+        } else if (firstService.deploymentType === 'docker_image' && firstService.dockerImage) {
+          setField('deploymentSource', 'image');
+          setField('imageName', firstService.dockerImage);
+          if (firstService.imageRegistry) setField('imageRegistry', firstService.imageRegistry);
+          if (firstService.imageTag) setField('imageTag', firstService.imageTag);
+        }
+      }
+      
+      // Discovery step: map services to discoveredServices format
+      const discoveredServices = services.map(s => ({
+        name: s.name,
+        dockerfilePath: s.dockerfilePath || './Dockerfile',
+        buildContext: s.rootDirectory || '.',
+        exposedPorts: [],
+        buildArgs: [],
+        baseImage: s.dockerImage || '',
+      }));
+      setField('discoveredServices', discoveredServices);
+      setField('selectedServiceIndices', services.map((_, idx) => idx));
+      // Mark discovery as complete to show pre-populated services
+      setField('discoveryTriggered', true);
+      setField('discoverySkipped', false);
+      
+      // Config step: environment variables (filter out Railway system variables)
+      const envVars = Object.entries(environmentVariables)
+        .filter(([key]) => !RAILWAY_SYSTEM_VARIABLES.has(key))
+        .map(([key, value]) => ({
+          key,
+          value,
+        }));
+      setField('environmentVariables', envVars);
+      
+      // Config step: service-specific variables (filter out Railway system variables)
+      const serviceEnvVars: Record<number, Array<{ key: string; value: string }>> = {};
+      serviceVariables.forEach((svcVar) => {
+        // Find the service index for this service
+        const serviceIndex = services.findIndex(s => s.railwayServiceId === svcVar.serviceId);
+        if (serviceIndex !== -1) {
+          serviceEnvVars[serviceIndex] = Object.entries(svcVar.variables)
+            .filter(([key]) => !RAILWAY_SYSTEM_VARIABLES.has(key))
+            .map(([key, value]) => ({
+              key,
+              value,
+            }));
+        }
+      });
+      setField('serviceEnvironmentVariables', serviceEnvVars);
+      
+      // Config step: environment type and TTL
+      const envType = environment.type?.toLowerCase();
+      if (envType === 'dev' || envType === 'prod') {
+        setField('templateKind', envType);
+      }
+      if (environment.ttlSeconds) {
+        setField('ttlHours', Math.floor(environment.ttlSeconds / 3600));
+      }
+      
+      console.log('Wizard pre-population complete');
+    }
+  }, [snapshot.data, sourceMode, setField]);
 
   // Warn user if they try to close during provisioning
   useEffect(() => {
@@ -299,7 +439,7 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        {props.trigger ?? <Button variant="default">Create environment</Button>}
+        {trigger ?? <Button variant="default">Create environment</Button>}
       </DialogTrigger>
       <DialogContent 
         className={`glass grain rounded-lg border border-border/60 shadow-sm max-h-[90vh] flex flex-col ${
@@ -318,6 +458,34 @@ export function CreateEnvironmentDialog(props: { trigger?: React.ReactNode }) {
           {/* Show progress screen during provisioning AND after completion */}
           {isProvisioning || currentStage === "complete" || currentStage === "failed" ? (
             <ProvisionProgress onClose={() => setOpen(false)} />
+          ) : sourceMode === 'clone' && snapshot.isLoading ? (
+            /* Show loading state when fetching snapshot */
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="text-center space-y-1">
+                <p className="text-sm font-medium">Loading environment...</p>
+                <p className="text-xs text-muted-foreground">Fetching configuration and services</p>
+              </div>
+            </div>
+          ) : sourceMode === 'clone' && snapshot.isError ? (
+            /* Show error state if snapshot fetch failed */
+            <div className="space-y-4">
+              <Alert variant="destructive">
+                <AlertTitle>Failed to load environment</AlertTitle>
+                <AlertDescription>
+                  {snapshot.error instanceof Error 
+                    ? snapshot.error.message 
+                    : 'Unable to fetch environment snapshot. Please try again or create a new environment instead.'}
+                </AlertDescription>
+              </Alert>
+              <Button 
+                variant="outline" 
+                onClick={() => setField('sourceMode', 'new')}
+                className="w-full"
+              >
+                Switch to Create New Environment
+              </Button>
+            </div>
           ) : (
             <>
               <WizardStepper />
