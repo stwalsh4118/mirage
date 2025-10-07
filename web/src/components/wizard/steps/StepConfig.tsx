@@ -22,12 +22,32 @@ export function StepConfig() {
     discoveredServices,
     selectedServiceIndices,
     serviceNameOverrides,
+    sourceMode,
     setField,
   } = useWizardStore();
 
   const [selectedServiceIndex, setSelectedServiceIndex] = useState<number | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [serviceImportDialogOpen, setServiceImportDialogOpen] = useState(false);
+
+  // Auto-select first service when in clone mode with pre-populated service variables
+  useEffect(() => {
+    if (sourceMode === 'clone' && 
+        selectedServiceIndices.length > 0 && 
+        Object.keys(serviceEnvironmentVariables).length > 0 &&
+        selectedServiceIndex === null) {
+      // Select the first service that has variables
+      const firstServiceWithVars = selectedServiceIndices.find(idx => 
+        serviceEnvironmentVariables[idx] && serviceEnvironmentVariables[idx].length > 0
+      );
+      if (firstServiceWithVars !== undefined) {
+        setSelectedServiceIndex(firstServiceWithVars);
+      } else {
+        // If no service has vars yet, just select the first service
+        setSelectedServiceIndex(selectedServiceIndices[0]);
+      }
+    }
+  }, [sourceMode, selectedServiceIndices, serviceEnvironmentVariables, selectedServiceIndex]);
 
   // Ensure there's always an empty row at the end for easy adding (global vars)
   useEffect(() => {
