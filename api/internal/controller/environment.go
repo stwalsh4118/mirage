@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
 
+	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -14,9 +16,33 @@ import (
 	"gorm.io/gorm"
 )
 
+// RailwayEnvironmentClient defines the interface for Railway operations needed by the environment controller.
+// This includes environment, project, and log operations used across environment.go, projects.go, and logs.go.
+type RailwayEnvironmentClient interface {
+	// Environment operations
+	CreateEnvironment(ctx context.Context, in railway.CreateEnvironmentInput) (railway.CreateEnvironmentResult, error)
+	DestroyEnvironment(ctx context.Context, in railway.DestroyEnvironmentInput) error
+	GetEnvironmentVariables(ctx context.Context, in railway.GetEnvironmentVariablesInput) (railway.GetEnvironmentVariablesResult, error)
+	GetAllEnvironmentAndServiceVariables(ctx context.Context, in railway.GetAllEnvironmentAndServiceVariablesInput) (railway.GetAllEnvironmentAndServiceVariablesResult, error)
+
+	// Project operations
+	CreateProject(ctx context.Context, in railway.CreateProjectInput) (railway.CreateProjectResult, error)
+	DestroyProject(ctx context.Context, in railway.DestroyProjectInput) error
+	GetProject(ctx context.Context, id string) (railway.Project, error)
+	GetProjectWithDetailsByID(ctx context.Context, id string) (railway.ProjectDetails, error)
+	ListProjects(ctx context.Context, limit int) ([]railway.Project, error)
+	ListProjectsWithDetails(ctx context.Context, limit int) ([]railway.ProjectDetails, error)
+
+	// Log operations (using websocket.Conn from github.com/coder/websocket)
+	GetLatestDeploymentID(ctx context.Context, serviceID string) (string, error)
+	GetDeploymentLogs(ctx context.Context, in railway.GetDeploymentLogsInput) (railway.GetDeploymentLogsResult, error)
+	SubscribeToEnvironmentLogs(ctx context.Context, environmentID string, serviceFilter string) (*websocket.Conn, error)
+	SubscribeToDeploymentLogs(ctx context.Context, deploymentID string, filter string) (*websocket.Conn, error)
+}
+
 type EnvironmentController struct {
 	DB      *gorm.DB
-	Railway *railway.Client
+	Railway RailwayEnvironmentClient
 }
 
 func (c *EnvironmentController) RegisterRoutes(r *gin.RouterGroup) {
@@ -31,6 +57,7 @@ func (c *EnvironmentController) RegisterRoutes(r *gin.RouterGroup) {
 	// metadata retrieval endpoints
 	r.GET("/environments/:id/metadata", c.GetEnvironmentMetadata)
 	r.GET("/environments/:id/services", c.ListEnvironmentServices)
+	r.GET("/environments/:id/snapshot", c.GetEnvironmentSnapshot)
 	r.GET("/templates", c.ListTemplates)
 }
 
@@ -352,6 +379,97 @@ func (c *EnvironmentController) ListTemplates(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, dtos)
+}
+
+// ServiceVariablesSnapshot represents variables for a specific service
+type ServiceVariablesSnapshot struct {
+	ServiceID   string            `json:"serviceId"`
+	ServiceName string            `json:"serviceName"`
+	Variables   map[string]string `json:"variables"`
+}
+
+// EnvironmentSnapshot represents the complete data needed for cloning an environment
+type EnvironmentSnapshot struct {
+	Environment          store.Environment          `json:"environment"`
+	Services             []store.Service            `json:"services"`
+	EnvironmentVariables map[string]string          `json:"environmentVariables"`
+	ServiceVariables     []ServiceVariablesSnapshot `json:"serviceVariables"`
+}
+
+// GetEnvironmentSnapshot returns all data needed to clone an environment.
+// This includes the environment details, all services, and environment variables from Railway.
+// The :id parameter is the Railway environment ID.
+func (c *EnvironmentController) GetEnvironmentSnapshot(ctx *gin.Context) {
+	railwayEnvID := ctx.Param("id")
+	if railwayEnvID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "railway environment id required"})
+		return
+	}
+
+	// Look up the Mirage environment by Railway ID
+	var env store.Environment
+	if err := c.DB.Preload("Services").Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+			return
+		}
+		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
+		return
+	}
+
+	log.Info().
+		Str("railway_env_id", railwayEnvID).
+		Str("mirage_env_id", env.ID).
+		Int("service_count", len(env.Services)).
+		Msg("fetching environment snapshot")
+
+	// Fetch environment and service variables from Railway API
+	envVars := make(map[string]string)
+	serviceVars := make([]ServiceVariablesSnapshot, 0)
+
+	if c.Railway != nil && env.RailwayEnvironmentID != "" && env.RailwayProjectID != "" {
+		result, err := c.Railway.GetAllEnvironmentAndServiceVariables(ctx, railway.GetAllEnvironmentAndServiceVariablesInput{
+			ProjectID:     env.RailwayProjectID,
+			EnvironmentID: env.RailwayEnvironmentID,
+		})
+		if err != nil {
+			log.Warn().
+				Err(err).
+				Str("railway_env_id", env.RailwayEnvironmentID).
+				Str("railway_project_id", env.RailwayProjectID).
+				Msg("failed to fetch variables for snapshot, returning empty variables")
+			// Don't fail - just return empty vars
+		} else {
+			envVars = result.EnvironmentVariables
+
+			// Convert Railway service variables to snapshot format
+			for _, svcVar := range result.ServiceVariables {
+				serviceVars = append(serviceVars, ServiceVariablesSnapshot{
+					ServiceID:   svcVar.ServiceID,
+					ServiceName: svcVar.ServiceName,
+					Variables:   svcVar.Variables,
+				})
+			}
+		}
+	}
+
+	snapshot := EnvironmentSnapshot{
+		Environment:          env,
+		Services:             env.Services,
+		EnvironmentVariables: envVars,
+		ServiceVariables:     serviceVars,
+	}
+
+	log.Info().
+		Str("railway_env_id", railwayEnvID).
+		Str("mirage_env_id", env.ID).
+		Int("service_count", len(env.Services)).
+		Int("env_variable_count", len(envVars)).
+		Int("services_with_variables", len(serviceVars)).
+		Msg("successfully created environment snapshot")
+
+	ctx.JSON(http.StatusOK, snapshot)
 }
 
 // serviceToDTO converts a store.Service model to a ServiceDetailDTO
