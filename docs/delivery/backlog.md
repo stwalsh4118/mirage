@@ -21,6 +21,9 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | <a id="13"></a>13 | Developer | Store comprehensive service build configuration and environment metadata to enable environment duplication and templating. [View Details](./13/prd.md) | Proposed | Persist Dockerfile paths, build args, and contexts; Store image registry config; Capture service dependencies; Enable metadata export/import; Support environment-as-template creation |
 | <a id="14"></a>14 | Developer | View, search, and filter unified logs across all services in an environment. [View Details](./14/prd.md) | Proposed | Fetch logs from Railway API; Multi-service log aggregation; Real-time log streaming; Search and filtering; Time range selection; Export logs capability |
 | <a id="15"></a>15 | Developer | Clone an existing environment with all its services, configuration, and metadata. [View Details](./15/prd.md) | Proposed | Deep copy environment metadata; Recreate all services with same config; Clone environment variables; Support cross-project cloning; Preserve service relationships; Update wizard with clone option |
+| <a id="16"></a>16 | Platform engineer | Implement core Clerk authentication with JWT verification, user database, and resource ownership. [View Details](./16/prd.md) | Proposed | Frontend Clerk integration; Backend JWT middleware; User table with GORM; Clerk webhooks for user sync; Resource ownership (UserID foreign keys); Protected API routes; User profile endpoints |
+| <a id="17"></a>17 | Platform engineer | Implement HashiCorp Vault for secure secret management of Railway API tokens and other user credentials. [View Details](./17/prd.md) | Proposed | Self-hosted Vault on Railway; Per-user secret storage; Railway/GitHub/Docker token management; Environment-specific secrets; Secret versioning and rotation; Comprehensive secret management UI |
+| <a id="18"></a>18 | Platform admin | Add advanced authentication features including RBAC, audit logging, user preferences, and admin dashboard. [View Details](./18/prd.md) | Proposed | Role-based access control (admin/user); Audit logging of all actions; User preferences; Admin dashboard; User management UI; System statistics |
 
 ## History
 
@@ -52,3 +55,7 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | 20250930-143000 | 13 | create_pbi | Created PBI 13 (Service Build Configuration Management) | ai-agent |
 | 20250930-143000 | 14 | create_pbi | Created PBI 14 (Service Logs Viewer) | ai-agent |
 | 20250930-143000 | 15 | create_pbi | Created PBI 15 (Environment Cloning) | ai-agent |
+| 20251007-000000 | 16 | create_pbi | Created PBI 16 (Clerk Authentication & User Management) | ai-agent |
+| 20251007-000000 | 17 | create_pbi | Created PBI 17 (HashiCorp Vault Secret Management) | ai-agent |
+| 20251007-010000 | 16 | significant_update | Simplified to core auth + resource ownership; moved advanced features to PBI 18 | ai-agent |
+| 20251007-010000 | 18 | create_pbi | Created PBI 18 (Advanced Auth Features: RBAC, Audit, Admin) | ai-agent |
