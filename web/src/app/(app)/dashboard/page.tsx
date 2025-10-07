@@ -8,7 +8,6 @@ import { useRailwayProjectsDetails } from "@/hooks/useRailway";
 
 export default function DashboardPage() {
   const { data: projects = [] } = useRailwayProjectsDetails();
-  console.log("projects", projects);
   const totalProjects = projects.length;
   const totalServices = projects.reduce((sum, p) => sum + (p.services?.length ?? 0), 0);
   const totalEnvironments = projects.reduce((sum, p) => sum + (p.environments?.length ?? 0), 0);
