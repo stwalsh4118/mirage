@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useDeleteRailwayEnvironment } from "@/hooks/useRailway"
-import { MoreVertical, Trash2 } from "lucide-react"
+import { MoreVertical, Trash2, Copy } from "lucide-react"
 import { toast } from "sonner"
+import { CreateEnvironmentDialog } from "@/components/wizard/CreateEnvironmentDialog"
 
 export interface Service {
   id: string
@@ -44,10 +45,12 @@ interface EnvironmentCardProps {
   environment: Environment
   isSelected: boolean
   onSelect: () => void
+  projectId?: string
 }
 
-export function EnvironmentCard({ environment, isSelected, onSelect }: EnvironmentCardProps) {
+export function EnvironmentCard({ environment, isSelected, onSelect, projectId }: EnvironmentCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showCloneDialog, setShowCloneDialog] = useState(false)
   const deleteEnvironment = useDeleteRailwayEnvironment()
 
   const getStatusColor = (status: string) => {
@@ -102,6 +105,16 @@ export function EnvironmentCard({ environment, isSelected, onSelect }: Environme
                     }}
                   >
                     View details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setShowCloneDialog(true)
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Clone environment
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -161,6 +174,25 @@ export function EnvironmentCard({ environment, isSelected, onSelect }: Environme
           </div>
         </CardContent>
       </Card>
+
+      {/* Clone Dialog - hidden trigger */}
+      <div className="hidden">
+        <CreateEnvironmentDialog
+          trigger={
+            <button
+              ref={(el) => {
+                if (el && showCloneDialog) {
+                  el.click();
+                  setShowCloneDialog(false);
+                }
+              }}
+            />
+          }
+          defaultSourceMode="clone"
+          defaultCloneSourceId={environment.id}
+          defaultProjectId={projectId}
+        />
+      </div>
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>

@@ -44,6 +44,10 @@ export type WizardState = {
   currentStepIndex: number;
   requestId: string | null;
 
+  // Clone mode
+  sourceMode: 'new' | 'clone';
+  cloneSourceEnvId: string | null;
+
   // Step 0: Project
   projectSelectionMode: ProjectSelectionMode;
   existingProjectId: string | null;
@@ -125,6 +129,9 @@ const initialState: Omit<WizardState,
 > = {
   currentStepIndex: 0,
   requestId: null,
+
+  sourceMode: "new",
+  cloneSourceEnvId: null,
 
   projectSelectionMode: "existing",
   existingProjectId: null,
