@@ -5,8 +5,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { CreateEnvironmentDialog } from "@/components/wizard/CreateEnvironmentDialog";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { UserButton } from "@clerk/nextjs";
 
 export function DashboardHeader() {
   return (
@@ -23,10 +23,17 @@ export function DashboardHeader() {
         </div>
         <div className="flex items-center gap-2 pl-2">
           <CreateEnvironmentDialog trigger={<Button size="sm">New Environment</Button>} />
-          <Avatar className="h-8 w-8">
-            <AvatarImage alt="profile" />
-            <AvatarFallback>ME</AvatarFallback>
-          </Avatar>
+          <UserButton
+            appearance={{
+              elements: {
+                avatarBox: "w-8 h-8",
+                userButtonPopoverCard: "shadow-xl border border-border rounded-lg",
+                userButtonPopoverActions: "p-1",
+                userButtonPopoverFooter: "hidden",
+              },
+            }}
+            afterSignOutUrl="/"
+          />
         </div>
       </div>
     </div>

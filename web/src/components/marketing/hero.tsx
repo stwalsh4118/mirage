@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
+import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 export function Hero() {
   const [currentEnv, setCurrentEnv] = useState(0);
@@ -12,8 +14,6 @@ export function Hero() {
     const interval = setInterval(() => setCurrentEnv((prev) => (prev + 1) % environments.length), 2000);
     return () => clearInterval(interval);
   }, [environments.length]);
-
-  const handleGetStarted = () => alert("Ready to create your first environment!");
 
   return (
     <section className="relative min-h-[79vh] flex items-center overflow-hidden">
@@ -52,7 +52,16 @@ export function Hero() {
               </div>
               <p className="text-xl text-muted-foreground text-pretty mb-8 leading-relaxed">Conjure perfect environments from thin air. Deploy, scale, and manage with the elegance of a desert mirage.</p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" onClick={handleGetStarted} className="font-semibold text-lg px-8 py-6 bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70 shadow-lg">Start Building</Button>
+                <SignedOut>
+                  <SignInButton mode="redirect" forceRedirectUrl={"/dashboard"} fallbackRedirectUrl={"/dashboard"}>
+                    <Button size="lg" className="font-semibold text-lg px-8 py-6 bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70 shadow-lg">Start Building</Button>
+                  </SignInButton>
+                </SignedOut>
+                <SignedIn>
+                  <Link href="/dashboard">
+                    <Button size="lg" className="font-semibold text-lg px-8 py-6 bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70 shadow-lg">Go to Dashboard</Button>
+                  </Link>
+                </SignedIn>
                 <Button size="lg" variant="outline" className="font-medium text-lg px-8 py-6 bg-card/60 backdrop-blur-sm border-border/50 hover:bg-card/80">Explore Docs</Button>
               </div>
             </div>
