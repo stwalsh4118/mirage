@@ -58,7 +58,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         ...e,
         status: "operational" as const,
         url: `${project.name}-${e.name}.mirage.dev`,
-        services: e.services.map((s) => {
+        services: (e.services || []).map((s) => {
           // Determine deployment type from source field
           const deploymentType = s.source?.image ? "docker_image" : "source_repo"
           

@@ -18,9 +18,9 @@ This document lists all tasks associated with PBI 16.
 | 16-8 | [Update Services controller with ownership checks](./16-8.md) | Proposed | Add UserID to service creation, filter queries by user, verify environment ownership |
 | 16-9 | [Implement user profile API endpoints](./16-9.md) | Proposed | Create GET/PATCH /api/v1/users/me and resource list endpoints |
 | 16-10 | [Apply authentication middleware to all protected routes](./16-10.md) | Proposed | Apply RequireAuth to all routes except healthz and webhooks, update server.go |
-| 16-11 | [Install and configure Clerk frontend SDK](./16-11.md) | Review | Install @clerk/nextjs, configure ClerkProvider, set up environment variables |
-| 16-12 | [Create sign-in and sign-up pages](./16-12.md) | Proposed | Implement /sign-in and /sign-up pages with Clerk components |
-| 16-13 | [Add authentication state management and JWT interceptor](./16-13.md) | Proposed | Update API client to send JWT tokens, handle 401 responses, add auth state to UI |
+| 16-11 | [Install and configure Clerk frontend SDK](./16-11.md) | Done | Install @clerk/nextjs, configure ClerkProvider, set up environment variables |
+| 16-12 | [Create sign-in and sign-up pages](./16-12.md) | Done | Implement /sign-in and /sign-up pages with Clerk components |
+| 16-13 | [Add authentication state management and JWT interceptor](./16-13.md) | Done | Update API client to send JWT tokens, handle 401 responses, add auth state to UI |
 | 16-14 | [Implement user profile UI components](./16-14.md) | Proposed | Add user profile dropdown to header with avatar, name, email, sign-out |
 | 16-15 | [Add protected route guards to frontend](./16-15.md) | Proposed | Implement auth checks for protected pages, redirect unauthenticated users |
 | 16-16 | [Update environment and service creation flows with user context](./16-16.md) | Proposed | Ensure wizard and API calls work with authenticated user, remove UserID from frontend payloads |
