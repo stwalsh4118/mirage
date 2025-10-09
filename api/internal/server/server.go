@@ -77,7 +77,7 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 
 	// Apply authentication middleware to all other v1 routes
 	if db != nil {
-		// Create authenticated route group
+		// Create authenticated route group for regular HTTP routes
 		authed := v1.Group("")
 		authed.Use(auth.RequireAuth(db))
 		{
@@ -86,8 +86,11 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 				ec.RegisterRoutes(authed)
 				sc := &controller.ServicesController{Railway: rw, DB: db}
 				sc.RegisterRoutes(authed)
+
+				// Register non-WebSocket log routes with regular auth
 				lc := &controller.LogsController{DB: db, Railway: rw, AllowedOrigins: cfg.AllowedOrigins}
-				lc.RegisterRoutes(authed)
+				authed.GET("/services/:id/logs", lc.GetServiceLogs)
+				authed.GET("/logs/export", lc.ExportLogs)
 			}
 
 			// Initialize Dockerfile scanner for discovery
@@ -100,6 +103,15 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 			// TODO: Add UserController when task 16-9 is implemented
 			// uc := &controller.UserController{DB: db}
 			// uc.RegisterRoutes(authed)
+		}
+
+		// WebSocket routes - auth happens via first message after connection (not middleware)
+		if rw != nil {
+			// Register WebSocket log streaming routes
+			// Note: Auth is handled inside the handler by reading first message
+			lc := &controller.LogsController{DB: db, Railway: rw, AllowedOrigins: cfg.AllowedOrigins}
+			v1.GET("/services/:id/logs/stream", lc.StreamServiceLogs)
+			v1.GET("/environments/:id/logs/stream", lc.StreamEnvironmentLogs)
 		}
 	}
 

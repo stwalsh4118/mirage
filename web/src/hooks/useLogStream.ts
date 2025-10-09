@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useAuth } from '@clerk/nextjs'
 import type { Log } from '@/components/logs/types'
 
 const DEFAULT_MAX_BUFFER_SIZE = 5000
@@ -31,6 +32,7 @@ interface LogStreamResult {
  * Handles connection lifecycle, reconnection with exponential backoff, and buffer management
  */
 export function useLogStream(options: LogStreamOptions): LogStreamResult {
+  const { getToken } = useAuth()
   const [logs, setLogs] = useState<Log[]>([])
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected')
   const [error, setError] = useState<string | null>(null)
@@ -68,8 +70,9 @@ export function useLogStream(options: LogStreamOptions): LogStreamResult {
     
     let url = `${protocol}//${host}/api/v1/services/${opts.serviceId}/logs/stream`
     
-    // Build query parameters
+    // Build query parameters (NO TOKEN - will be sent as first message after connection)
     const params = new URLSearchParams()
+    
     if (opts.filters?.search) {
       params.set('search', opts.filters.search)
     }
@@ -88,7 +91,7 @@ export function useLogStream(options: LogStreamOptions): LogStreamResult {
     return url
   }, [])
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     // Don't connect if already connected or connecting
     if (wsRef.current?.readyState === WebSocket.OPEN || 
         wsRef.current?.readyState === WebSocket.CONNECTING) {
@@ -105,11 +108,32 @@ export function useLogStream(options: LogStreamOptions): LogStreamResult {
     setError(null)
 
     try {
-      const ws = new WebSocket(buildWebSocketUrl())
+      // Get JWT token for authentication
+      const token = await getToken()
+      if (!token) {
+        throw new Error('Authentication token not available')
+      }
+
+      const url = buildWebSocketUrl()
+      const ws = new WebSocket(url)
       wsRef.current = ws
 
       ws.onopen = () => {
-        console.log('[useLogStream] WebSocket connected')
+        console.log('[useLogStream] WebSocket connected, sending auth token')
+        
+        // Send authentication token as first message (encrypted in transit)
+        try {
+          ws.send(JSON.stringify({
+            type: 'auth',
+            token: token
+          }))
+          console.log('[useLogStream] Auth token sent')
+        } catch (err) {
+          console.error('[useLogStream] Failed to send auth token:', err)
+          ws.close(1008, 'Authentication failed')
+          return
+        }
+        
         setStatus('connected')
         reconnectAttemptsRef.current = 0
         // Clear logs on fresh connection to avoid duplicates

@@ -13,6 +13,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/logutil"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/store"
@@ -66,6 +67,13 @@ func (c *LogsController) GetServiceLogs(ctx *gin.Context) {
 		return
 	}
 
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
 	// Get Mirage service ID from URL parameter
 	serviceID := ctx.Param("id")
 	if serviceID == "" {
@@ -73,13 +81,13 @@ func (c *LogsController) GetServiceLogs(ctx *gin.Context) {
 		return
 	}
 
-	// Look up service in database by Mirage ID
+	// Look up service in database by Mirage ID with ownership check
 	var service store.Service
-	if err := c.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
-			return
-		}
+	err = c.DB.Where("id = ? AND user_id = ?", serviceID, user.ID).First(&service).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+		return
+	} else if err != nil {
 		log.Error().Err(err).Str("service_id", serviceID).Msg("failed to query service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve service"})
 		return
@@ -347,6 +355,7 @@ type WebSocketMessage struct {
 
 // StreamEnvironmentLogs streams real-time logs from Railway to frontend clients via WebSocket
 // GET /api/v1/environments/:id/logs/stream?services=svc1,svc2
+// Auth is handled via first message after connection (token sent encrypted in WebSocket payload)
 func (c *LogsController) StreamEnvironmentLogs(ginCtx *gin.Context) {
 	if c.Railway == nil {
 		ginCtx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
@@ -360,15 +369,80 @@ func (c *LogsController) StreamEnvironmentLogs(ginCtx *gin.Context) {
 		return
 	}
 
-	// Look up environment to verify it exists
+	// Get allowed origins from controller config (defaults to wildcard for development)
+	allowedOrigins := c.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"*"} // Fallback for development only
+		log.Warn().Msg("no allowed origins configured for websocket, using wildcard (not recommended for production)")
+	}
+
+	// Upgrade HTTP connection to WebSocket FIRST (before auth)
+	conn, err := websocket.Accept(ginCtx.Writer, ginCtx.Request, &websocket.AcceptOptions{
+		OriginPatterns: allowedOrigins,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to upgrade to websocket")
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
+
+	// Create context with timeout for auth message
+	authCtx, authCancel := context.WithTimeout(ginCtx.Request.Context(), 5*time.Second)
+	defer authCancel()
+
+	// Read first message - must be auth message with JWT token
+	_, authMsgBytes, err := conn.Read(authCtx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to read auth message")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "authentication required")
+		conn.Close(websocket.StatusPolicyViolation, "no auth message received")
+		return
+	}
+
+	// Parse auth message
+	var authMsg struct {
+		Type  string `json:"type"`
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(authMsgBytes, &authMsg); err != nil {
+		log.Error().Err(err).Msg("failed to parse auth message")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "invalid auth message format")
+		conn.Close(websocket.StatusPolicyViolation, "invalid auth message")
+		return
+	}
+
+	if authMsg.Type != "auth" || authMsg.Token == "" {
+		log.Error().Msg("auth message missing type or token")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "invalid auth message")
+		conn.Close(websocket.StatusPolicyViolation, "invalid auth message")
+		return
+	}
+
+	// Verify JWT token and get user
+	user, err := auth.VerifyAndLoadUser(ginCtx.Request.Context(), c.DB, authMsg.Token)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to verify auth token")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "authentication failed")
+		conn.Close(websocket.StatusPolicyViolation, "authentication failed")
+		return
+	}
+
+	log.Info().
+		Str("user_id", user.ID).
+		Str("environment_id", environmentID).
+		Msg("websocket authenticated successfully")
+
+	// Look up environment to verify it exists and user owns it
 	var env store.Environment
-	if err := c.DB.Where("railway_environment_id = ?", environmentID).First(&env).Error; err != nil {
+	if err := c.DB.Where("railway_environment_id = ? AND user_id = ?", environmentID, user.ID).First(&env).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			ginCtx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+			c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "environment not found")
+			conn.Close(websocket.StatusPolicyViolation, "environment not found")
 			return
 		}
 		log.Error().Err(err).Str("environment_id", environmentID).Msg("failed to query environment")
-		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "failed to retrieve environment")
+		conn.Close(websocket.StatusInternalError, "database error")
 		return
 	}
 
@@ -378,24 +452,8 @@ func (c *LogsController) StreamEnvironmentLogs(ginCtx *gin.Context) {
 	log.Info().
 		Str("environment_id", environmentID).
 		Str("service_filter", serviceFilter).
-		Msg("client connecting to log stream")
-
-	// Get allowed origins from controller config (defaults to wildcard for development)
-	allowedOrigins := c.AllowedOrigins
-	if len(allowedOrigins) == 0 {
-		allowedOrigins = []string{"*"} // Fallback for development only
-		log.Warn().Msg("no allowed origins configured for websocket, using wildcard (not recommended for production)")
-	}
-
-	// Upgrade HTTP connection to WebSocket
-	conn, err := websocket.Accept(ginCtx.Writer, ginCtx.Request, &websocket.AcceptOptions{
-		OriginPatterns: allowedOrigins,
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("failed to upgrade to websocket")
-		return
-	}
-	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
+		Str("user_id", user.ID).
+		Msg("client authenticated and connecting to environment log stream")
 
 	// Send initial status message
 	if err := c.sendWebSocketMessage(ginCtx, conn, messageTypeStatus, "connected"); err != nil {
@@ -532,6 +590,7 @@ func (c *LogsController) getServiceName(railwayServiceID string) string {
 
 // StreamServiceLogs streams real-time logs from a specific service's deployment to frontend clients via WebSocket
 // GET /api/v1/services/:id/logs/stream?search=error
+// Auth is handled via first message after connection (token sent encrypted in WebSocket payload)
 func (c *LogsController) StreamServiceLogs(ginCtx *gin.Context) {
 	if c.Railway == nil {
 		ginCtx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
@@ -545,15 +604,80 @@ func (c *LogsController) StreamServiceLogs(ginCtx *gin.Context) {
 		return
 	}
 
-	// Look up service in database by Mirage ID
+	// Get allowed origins from controller config (defaults to wildcard for development)
+	allowedOrigins := c.AllowedOrigins
+	if len(allowedOrigins) == 0 {
+		allowedOrigins = []string{"*"} // Fallback for development only
+		log.Warn().Msg("no allowed origins configured for websocket, using wildcard (not recommended for production)")
+	}
+
+	// Upgrade HTTP connection to WebSocket FIRST (before auth)
+	conn, err := websocket.Accept(ginCtx.Writer, ginCtx.Request, &websocket.AcceptOptions{
+		OriginPatterns: allowedOrigins,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to upgrade to websocket")
+		return
+	}
+	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
+
+	// Create context with timeout for auth message
+	authCtx, authCancel := context.WithTimeout(ginCtx.Request.Context(), 5*time.Second)
+	defer authCancel()
+
+	// Read first message - must be auth message with JWT token
+	_, authMsgBytes, err := conn.Read(authCtx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to read auth message")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "authentication required")
+		conn.Close(websocket.StatusPolicyViolation, "no auth message received")
+		return
+	}
+
+	// Parse auth message
+	var authMsg struct {
+		Type  string `json:"type"`
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(authMsgBytes, &authMsg); err != nil {
+		log.Error().Err(err).Msg("failed to parse auth message")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "invalid auth message format")
+		conn.Close(websocket.StatusPolicyViolation, "invalid auth message")
+		return
+	}
+
+	if authMsg.Type != "auth" || authMsg.Token == "" {
+		log.Error().Msg("auth message missing type or token")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "invalid auth message")
+		conn.Close(websocket.StatusPolicyViolation, "invalid auth message")
+		return
+	}
+
+	// Verify JWT token and get user
+	user, err := auth.VerifyAndLoadUser(ginCtx.Request.Context(), c.DB, authMsg.Token)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to verify auth token")
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "authentication failed")
+		conn.Close(websocket.StatusPolicyViolation, "authentication failed")
+		return
+	}
+
+	log.Info().
+		Str("user_id", user.ID).
+		Str("service_id", serviceID).
+		Msg("websocket authenticated successfully")
+
+	// Look up service in database by Mirage ID with ownership check
 	var service store.Service
-	if err := c.DB.Where("id = ?", serviceID).First(&service).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ginCtx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
-			return
-		}
+	err = c.DB.Where("id = ? AND user_id = ?", serviceID, user.ID).First(&service).Error
+	if err == gorm.ErrRecordNotFound {
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "service not found")
+		conn.Close(websocket.StatusPolicyViolation, "service not found")
+		return
+	} else if err != nil {
 		log.Error().Err(err).Str("service_id", serviceID).Msg("failed to query service")
-		ginCtx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve service"})
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, "failed to retrieve service")
+		conn.Close(websocket.StatusInternalError, "database error")
 		return
 	}
 
@@ -561,7 +685,8 @@ func (c *LogsController) StreamServiceLogs(ginCtx *gin.Context) {
 	deploymentID, err := c.Railway.GetLatestDeploymentID(ginCtx, service.RailwayServiceID)
 	if err != nil {
 		log.Error().Err(err).Str("railway_service_id", service.RailwayServiceID).Msg("failed to get latest deployment")
-		ginCtx.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("failed to get deployment: %s", err.Error())})
+		c.sendWebSocketMessage(ginCtx.Request.Context(), conn, messageTypeError, fmt.Sprintf("failed to get deployment: %s", err.Error()))
+		conn.Close(websocket.StatusInternalError, "deployment lookup failed")
 		return
 	}
 
@@ -574,24 +699,8 @@ func (c *LogsController) StreamServiceLogs(ginCtx *gin.Context) {
 		Str("service_name", service.Name).
 		Str("deployment_id", deploymentID).
 		Str("search_filter", searchFilter).
-		Msg("client connecting to service log stream")
-
-	// Get allowed origins from controller config (defaults to wildcard for development)
-	allowedOrigins := c.AllowedOrigins
-	if len(allowedOrigins) == 0 {
-		allowedOrigins = []string{"*"} // Fallback for development only
-		log.Warn().Msg("no allowed origins configured for websocket, using wildcard (not recommended for production)")
-	}
-
-	// Upgrade HTTP connection to WebSocket
-	conn, err := websocket.Accept(ginCtx.Writer, ginCtx.Request, &websocket.AcceptOptions{
-		OriginPatterns: allowedOrigins,
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("failed to upgrade to websocket")
-		return
-	}
-	defer conn.Close(websocket.StatusNormalClosure, "connection closed")
+		Str("user_id", user.ID).
+		Msg("client authenticated and connecting to service log stream")
 
 	// Send initial status message
 	if err := c.sendWebSocketMessage(ginCtx, conn, messageTypeStatus, "connected"); err != nil {
