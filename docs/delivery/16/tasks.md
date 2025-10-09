@@ -17,7 +17,7 @@ This document lists all tasks associated with PBI 16.
 | 16-7 | [Update Environment controller with ownership checks](./16-7.md) | Done | Add UserID to environment creation, filter queries by user, implement 403 checks |
 | 16-8 | [Update Services controller with ownership checks](./16-8.md) | Done | Add UserID to service creation, filter queries by user, verify environment ownership |
 | 16-9 | [Implement user profile API endpoints](./16-9.md) | Proposed | Create GET/PATCH /api/v1/users/me and resource list endpoints |
-| 16-10 | [Apply authentication middleware to all protected routes](./16-10.md) | Proposed | Apply RequireAuth to all routes except healthz and webhooks, update server.go |
+| 16-10 | [Apply authentication middleware to all protected routes](./16-10.md) | Done | Apply RequireAuth to all routes except healthz and webhooks, update server.go |
 | 16-11 | [Install and configure Clerk frontend SDK](./16-11.md) | Done | Install @clerk/nextjs, configure ClerkProvider, set up environment variables |
 | 16-12 | [Create sign-in and sign-up pages](./16-12.md) | Done | Implement /sign-in and /sign-up pages with Clerk components |
 | 16-13 | [Add authentication state management and JWT interceptor](./16-13.md) | Done | Update API client to send JWT tokens, handle 401 responses, add auth state to UI |
