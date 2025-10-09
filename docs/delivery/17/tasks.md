@@ -9,7 +9,7 @@ This document lists all tasks associated with PBI 17.
 | Task ID | Name | Status | Description |
 | :------ | :--------------------------------------- | :------- | :--------------------------------- |
 | 17-1 | [Research and document HashiCorp Vault HTTP API](./17-1.md) | Review | Research Vault HTTP API endpoints, KV v2 secrets engine, authentication methods, and create implementation guide |
-| 17-2 | [Setup Docker Compose for local Vault development](./17-2.md) | Proposed | Add Vault service to docker-compose.yml for local development with dev mode |
+| 17-2 | [Setup Docker Compose for local Vault development](./17-2.md) | Review | Add Vault service to docker-compose.yml for local development with dev mode |
 | 17-3 | [Deploy Vault server on Railway with persistent storage](./17-3.md) | Proposed | Deploy Vault as Railway service with Raft storage and volume for data persistence |
 | 17-4 | [Create Vault HTTP client wrapper and implement initialization](./17-4.md) | Proposed | Create vault package with HTTP client wrapper, initialization, and configuration loading |
 | 17-5 | [Implement Vault authentication with token and AppRole](./17-5.md) | Proposed | Implement token auth for dev and AppRole auth for production with automatic token renewal |
