@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: mirage-vault-dev
+    ports:
+      - "8200:8200"
+    environment:
+      # Dev mode configuration - automatic unsealing with known token
+      VAULT_DEV_ROOT_TOKEN_ID: dev-root-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      # Disable TLS for local development (Railway handles TLS in production)
+      VAULT_ADDR: http://0.0.0.0:8200
+    cap_add:
+      # IPC_LOCK capability allows Vault to lock memory to prevent secrets from being swapped to disk
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - mirage-network
+
+networks:
+  mirage-network:
+    driver: bridge
+
+
