@@ -30,6 +30,9 @@ type AppConfig struct {
 	// Status poller settings
 	PollIntervalSeconds int
 	PollJitterFraction  float64
+	// Clerk authentication
+	ClerkSecretKey     string
+	ClerkWebhookSecret string
 }
 
 // LoadFromEnv loads configuration from environment variables with defaults.
@@ -44,6 +47,8 @@ func LoadFromEnv() (AppConfig, error) {
 		AllowedOrigins:      parseAllowedOrigins(getEnv("ALLOWED_ORIGINS", DefaultAllowedOrigins)),
 		PollIntervalSeconds: getEnvInt("POLL_INTERVAL_SECONDS", DefaultPollIntervalSeconds),
 		PollJitterFraction:  getEnvFloat("POLL_JITTER_FRACTION", DefaultPollJitterFraction),
+		ClerkSecretKey:      os.Getenv("CLERK_SECRET_KEY"),
+		ClerkWebhookSecret:  os.Getenv("CLERK_WEBHOOK_SECRET"),
 	}
 
 	// Clamp and validate poller configuration

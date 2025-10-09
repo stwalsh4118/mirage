@@ -8,6 +8,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 
+	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/config"
 	"github.com/stwalsh4118/mirageapi/internal/jobs"
 	"github.com/stwalsh4118/mirageapi/internal/logging"
@@ -28,6 +29,13 @@ func main() {
 	}
 
 	logging.Setup(cfg.Environment)
+
+	// Initialize Clerk SDK with secret key
+	if cfg.ClerkSecretKey != "" {
+		auth.InitClerk(cfg.ClerkSecretKey)
+	} else {
+		log.Warn().Msg("CLERK_SECRET_KEY not set - authentication will not work")
+	}
 
 	// Initialize DB: prefer DATABASE_URL if provided, else fallback to SQLite (SQLITE_PATH or default)
 	var db *gorm.DB
