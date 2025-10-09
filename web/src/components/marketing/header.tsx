@@ -26,7 +26,12 @@ export function Header() {
         <nav className="hidden md:flex items-center space-x-6">
           <a href="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
           <a href="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">GitHub</a>
-          <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sign in</Link>
+          <SignedOut>
+            <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sign in</Link>
+          </SignedOut>
+          <SignedIn>
+            <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Dashboard</Link>
+          </SignedIn>
         </nav>
         <div className="flex items-center space-x-2">
           <ModeToggle />

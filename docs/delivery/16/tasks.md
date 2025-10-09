@@ -8,12 +8,12 @@ This document lists all tasks associated with PBI 16.
 
 | Task ID | Name | Status | Description |
 | :------ | :--------------------------------------- | :------- | :--------------------------------- |
-| 16-1 | [Research and document Clerk Go SDK](./16-1.md) | Proposed | Research Clerk Go SDK v2 API, JWT verification patterns, and create implementation guide |
+| 16-1 | [Research and document Clerk Go SDK](./16-1.md) | Done | Research Clerk Go SDK v2 API, JWT verification patterns, and create implementation guide |
 | 16-2 | [Setup Clerk application and configure webhooks](./16-2.md) | Proposed | Create Clerk app, configure dev environment, set up webhook endpoints |
-| 16-3 | [Create User model and database migration](./16-3.md) | Proposed | Define User GORM model, create migration, add indexes |
+| 16-3 | [Create User model and database migration](./16-3.md) | Done | Define User GORM model, create migration, add indexes |
 | 16-4 | [Add UserID foreign keys to existing models and migration](./16-4.md) | Proposed | Add UserID to Environment, Service, EnvironmentMetadata models, create migration, delete test data |
-| 16-5 | [Implement Clerk JWT verification middleware](./16-5.md) | Proposed | Create RequireAuth middleware with JWT verification, user loading, and context helpers |
-| 16-6 | [Implement Clerk webhook handler](./16-6.md) | Proposed | Create webhook endpoint with signature verification and event handlers (user.created, user.updated, user.deleted) |
+| 16-5 | [Implement Clerk JWT verification middleware](./16-5.md) | Done | Create RequireAuth middleware with JWT verification, user loading, and context helpers |
+| 16-6 | [Implement Clerk webhook handler](./16-6.md) | Done | Create webhook endpoint with signature verification and event handlers (user.created, user.updated, user.deleted) |
 | 16-7 | [Update Environment controller with ownership checks](./16-7.md) | Proposed | Add UserID to environment creation, filter queries by user, implement 403 checks |
 | 16-8 | [Update Services controller with ownership checks](./16-8.md) | Proposed | Add UserID to service creation, filter queries by user, verify environment ownership |
 | 16-9 | [Implement user profile API endpoints](./16-9.md) | Proposed | Create GET/PATCH /api/v1/users/me and resource list endpoints |
