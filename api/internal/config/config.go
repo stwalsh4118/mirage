@@ -33,6 +33,15 @@ type AppConfig struct {
 	// Clerk authentication
 	ClerkSecretKey     string
 	ClerkWebhookSecret string
+	// Vault configuration
+	VaultEnabled    bool
+	VaultAddr       string
+	VaultToken      string
+	VaultRoleID     string
+	VaultSecretID   string
+	VaultNamespace  string
+	VaultSkipVerify bool
+	VaultMountPath  string
 }
 
 // LoadFromEnv loads configuration from environment variables with defaults.
@@ -49,6 +58,14 @@ func LoadFromEnv() (AppConfig, error) {
 		PollJitterFraction:  getEnvFloat("POLL_JITTER_FRACTION", DefaultPollJitterFraction),
 		ClerkSecretKey:      os.Getenv("CLERK_SECRET_KEY"),
 		ClerkWebhookSecret:  os.Getenv("CLERK_WEBHOOK_SECRET"),
+		VaultEnabled:        getEnvBool("VAULT_ENABLED", false),
+		VaultAddr:           os.Getenv("VAULT_ADDR"),
+		VaultToken:          os.Getenv("VAULT_TOKEN"),
+		VaultRoleID:         os.Getenv("VAULT_ROLE_ID"),
+		VaultSecretID:       os.Getenv("VAULT_SECRET_ID"),
+		VaultNamespace:      os.Getenv("VAULT_NAMESPACE"),
+		VaultSkipVerify:     getEnvBool("VAULT_SKIP_VERIFY", false),
+		VaultMountPath:      getEnv("VAULT_MOUNT_PATH", "mirage"),
 	}
 
 	// Clamp and validate poller configuration
@@ -99,6 +116,16 @@ func getEnvFloat(key string, fallback float64) float64 {
 	if v := os.Getenv(key); v != "" {
 		if f, err := strconv.ParseFloat(v, 64); err == nil {
 			return f
+		}
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		b, err := strconv.ParseBool(v)
+		if err == nil {
+			return b
 		}
 	}
 	return fallback
