@@ -14,8 +14,8 @@ This document lists all tasks associated with PBI 16.
 | 16-4 | [Add UserID foreign keys to existing models and migration](./16-4.md) | Proposed | Add UserID to Environment, Service, EnvironmentMetadata models, create migration, delete test data |
 | 16-5 | [Implement Clerk JWT verification middleware](./16-5.md) | Done | Create RequireAuth middleware with JWT verification, user loading, and context helpers |
 | 16-6 | [Implement Clerk webhook handler](./16-6.md) | Done | Create webhook endpoint with signature verification and event handlers (user.created, user.updated, user.deleted) |
-| 16-7 | [Update Environment controller with ownership checks](./16-7.md) | Proposed | Add UserID to environment creation, filter queries by user, implement 403 checks |
-| 16-8 | [Update Services controller with ownership checks](./16-8.md) | Proposed | Add UserID to service creation, filter queries by user, verify environment ownership |
+| 16-7 | [Update Environment controller with ownership checks](./16-7.md) | Done | Add UserID to environment creation, filter queries by user, implement 403 checks |
+| 16-8 | [Update Services controller with ownership checks](./16-8.md) | Done | Add UserID to service creation, filter queries by user, verify environment ownership |
 | 16-9 | [Implement user profile API endpoints](./16-9.md) | Proposed | Create GET/PATCH /api/v1/users/me and resource list endpoints |
 | 16-10 | [Apply authentication middleware to all protected routes](./16-10.md) | Proposed | Apply RequireAuth to all routes except healthz and webhooks, update server.go |
 | 16-11 | [Install and configure Clerk frontend SDK](./16-11.md) | Done | Install @clerk/nextjs, configure ClerkProvider, set up environment variables |

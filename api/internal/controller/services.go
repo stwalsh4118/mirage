@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/store"
 	"gorm.io/gorm"
@@ -77,10 +78,32 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
 		return
 	}
+
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
 	var req ProvisionServicesRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Verify user owns the parent environment before creating services
+	if c.DB != nil {
+		var env store.Environment
+		err = c.DB.Where("id = ? AND user_id = ?", req.EnvironmentID, user.ID).First(&env).Error
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "environment not found or access denied"})
+			return
+		} else if err != nil {
+			log.Error().Err(err).Msg("failed to verify environment ownership")
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify environment ownership"})
+			return
+		}
 	}
 
 	// Validate each service has either repo OR image fields
@@ -175,7 +198,7 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 		}
 		ids = append(ids, out.ServiceID)
 
-		// Persist service to database
+		// Persist service to database with UserID
 		if c.DB != nil {
 			serviceModel, err := serviceSpecToModel(s, req.EnvironmentID, out.ServiceID)
 			if err != nil {
@@ -186,6 +209,9 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 				// Continue - Railway service was created successfully
 				continue
 			}
+
+			// Set UserID from authenticated user
+			serviceModel.UserID = user.ID
 
 			if err := c.DB.Create(&serviceModel).Error; err != nil {
 				log.Error().Err(err).
@@ -198,8 +224,9 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 					Str("service_id", serviceModel.ID).
 					Str("service_name", serviceModel.Name).
 					Str("railway_service_id", out.ServiceID).
+					Str("user_id", user.ID).
 					Str("deployment_type", string(serviceModel.DeploymentType)).
-					Msg("persisted service to database")
+					Msg("persisted service to database with ownership")
 			}
 		}
 	}
@@ -370,12 +397,20 @@ func (c *ServicesController) GetService(ctx *gin.Context) {
 		return
 	}
 
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Query service with ownership check
 	var service store.Service
-	if err := c.DB.First(&service, "id = ?", serviceID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
-			return
-		}
+	err = c.DB.Where("id = ? AND user_id = ?", serviceID, user.ID).First(&service).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "service not found"})
+		return
+	} else if err != nil {
 		log.Error().Err(err).Str("service_id", serviceID).Msg("failed to query service")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve service"})
 		return
@@ -438,8 +473,30 @@ func (c *ServicesController) DeleteRailwayService(ctx *gin.Context) {
 		return
 	}
 
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Verify ownership before deleting
+	var service store.Service
+	err = c.DB.Where("railway_service_id = ? AND user_id = ?", railwayServiceID, user.ID).First(&service).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "service not found or access denied"})
+		return
+	} else if err != nil {
+		log.Error().Err(err).Str("railway_service_id", railwayServiceID).Msg("failed to verify service ownership")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify ownership"})
+		return
+	}
+
 	// Step 1: Delete from Railway first (fail fast if Railway API fails)
-	log.Info().Str("railway_service_id", railwayServiceID).Msg("deleting railway service")
+	log.Info().
+		Str("railway_service_id", railwayServiceID).
+		Str("user_id", user.ID).
+		Msg("deleting railway service")
 	if err := c.Railway.DestroyService(ctx, railway.DestroyServiceInput{ServiceID: railwayServiceID}); err != nil {
 		log.Error().Err(err).Str("railway_service_id", railwayServiceID).Msg("railway delete service failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -447,6 +504,7 @@ func (c *ServicesController) DeleteRailwayService(ctx *gin.Context) {
 	}
 
 	// Step 2: Clean up database (Railway deletion succeeded, so clean up our record)
+	// Note: service was already fetched above with ownership verification
 	if c.DB != nil {
 		// Delete the service from the database
 		result := c.DB.Where("railway_service_id = ?", railwayServiceID).Delete(&store.Service{})
@@ -455,8 +513,6 @@ func (c *ServicesController) DeleteRailwayService(ctx *gin.Context) {
 				Str("railway_service_id", railwayServiceID).
 				Msg("failed to delete service from database")
 			// Don't fail the request - Railway resource was deleted successfully
-		} else if result.RowsAffected == 0 {
-			log.Warn().Str("railway_service_id", railwayServiceID).Msg("service not found in database")
 		} else {
 			log.Info().
 				Str("railway_service_id", railwayServiceID).

@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/status"
 	"github.com/stwalsh4118/mirageapi/internal/store"
@@ -226,6 +227,29 @@ func (c *EnvironmentController) GetRailwayProject(ctx *gin.Context) {
 		return
 	}
 	id := ctx.Param("id")
+
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Verify user owns at least one environment in this project
+	var count int64
+	err = c.DB.Model(&store.Environment{}).
+		Where("railway_project_id = ? AND user_id = ?", id, user.ID).
+		Count(&count).Error
+	if err != nil {
+		log.Error().Err(err).Str("project_id", id).Msg("failed to verify project ownership")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify ownership"})
+		return
+	}
+	if count == 0 {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "project not found or access denied"})
+		return
+	}
+
 	details := ctx.Query("details") == "1"
 	if details {
 		p, err := c.Railway.GetProjectWithDetailsByID(ctx, id)
@@ -338,6 +362,14 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
 		return
 	}
+
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
 	var req ProvisionProjectRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -400,6 +432,7 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 	if c.DB != nil {
 		env := store.Environment{
 			ID:                   uuid.New().String(),
+			UserID:               user.ID, // Set from authenticated user
 			Name:                 envName,
 			Type:                 store.EnvironmentTypeProd, // Base environment defaults to prod
 			Status:               status.StatusCreating,
@@ -426,6 +459,7 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 
 			metadata := store.EnvironmentMetadata{
 				ID:                   uuid.New().String(),
+				UserID:               user.ID, // Set from authenticated user
 				EnvironmentID:        env.ID,
 				WizardInputsJSON:     nil, // No wizard inputs for project creation
 				ProvisionOutputsJSON: provisionOutputsJSON,
@@ -488,8 +522,30 @@ func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
 		return
 	}
 
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Verify ownership before deleting
+	var env store.Environment
+	err = c.DB.Where("railway_environment_id = ? AND user_id = ?", railwayEnvID, user.ID).First(&env).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "environment not found or access denied"})
+		return
+	} else if err != nil {
+		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to verify environment ownership")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify ownership"})
+		return
+	}
+
 	// Step 1: Delete from Railway first (fail fast if Railway API fails)
-	log.Info().Str("railway_env_id", railwayEnvID).Msg("deleting railway environment")
+	log.Info().
+		Str("railway_env_id", railwayEnvID).
+		Str("user_id", user.ID).
+		Msg("deleting railway environment")
 	if err := c.Railway.DestroyEnvironment(ctx, railway.DestroyEnvironmentInput{EnvironmentID: railwayEnvID}); err != nil {
 		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("railway delete environment failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -497,19 +553,8 @@ func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
 	}
 
 	// Step 2: Clean up database (Railway deletion succeeded, so clean up our records)
+	// Note: env was already fetched above with ownership verification
 	if c.DB != nil {
-		// Look up the Mirage environment by Railway ID
-		var env store.Environment
-		if err := c.DB.Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				log.Warn().Str("railway_env_id", railwayEnvID).Msg("environment not found in database, skipping cleanup")
-			} else {
-				log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment for cleanup")
-			}
-			// Don't fail the request - Railway resource was deleted successfully
-			ctx.Status(http.StatusNoContent)
-			return
-		}
 
 		// Use transaction to ensure atomic cleanup
 		txErr := c.DB.Transaction(func(tx *gorm.DB) error {
@@ -572,8 +617,33 @@ func (c *EnvironmentController) DeleteRailwayProject(ctx *gin.Context) {
 		return
 	}
 
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Verify user owns at least one environment in this project
+	var count int64
+	err = c.DB.Model(&store.Environment{}).
+		Where("railway_project_id = ? AND user_id = ?", projectID, user.ID).
+		Count(&count).Error
+	if err != nil {
+		log.Error().Err(err).Str("project_id", projectID).Msg("failed to verify project ownership")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify ownership"})
+		return
+	}
+	if count == 0 {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "project not found or access denied"})
+		return
+	}
+
 	// Step 1: Delete from Railway first (fail fast if Railway API fails)
-	log.Warn().Str("project_id", projectID).Msg("deleting railway project - irreversible operation")
+	log.Warn().
+		Str("project_id", projectID).
+		Str("user_id", user.ID).
+		Msg("deleting railway project - irreversible operation")
 	if err := c.Railway.DestroyProject(ctx, railway.DestroyProjectInput{ProjectID: projectID}); err != nil {
 		log.Error().Err(err).Str("project_id", projectID).Msg("railway delete project failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -582,9 +652,9 @@ func (c *EnvironmentController) DeleteRailwayProject(ctx *gin.Context) {
 
 	// Step 2: Clean up database (Railway deletion succeeded, so clean up all project resources)
 	if c.DB != nil {
-		// Find all environments associated with this Railway project
+		// Find all environments associated with this Railway project owned by this user
 		var envs []store.Environment
-		if err := c.DB.Where("railway_project_id = ?", projectID).Find(&envs).Error; err != nil {
+		if err := c.DB.Where("railway_project_id = ? AND user_id = ?", projectID, user.ID).Find(&envs).Error; err != nil {
 			log.Error().Err(err).Str("project_id", projectID).Msg("failed to query environments for cleanup")
 			// Don't fail the request - Railway resource was deleted successfully
 			ctx.Status(http.StatusNoContent)

@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
+	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/status"
 	"github.com/stwalsh4118/mirageapi/internal/store"
@@ -82,6 +83,14 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
 		return
 	}
+
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
 	var req ProvisionEnvironmentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -104,6 +113,7 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 
 		env = store.Environment{
 			ID:                   uuid.New().String(),
+			UserID:               user.ID, // Set from authenticated user
 			Name:                 req.Name,
 			Type:                 envType,
 			Status:               status.StatusCreating,
@@ -136,6 +146,7 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 
 				metadata := store.EnvironmentMetadata{
 					ID:                   uuid.New().String(),
+					UserID:               user.ID, // Set from authenticated user
 					EnvironmentID:        env.ID,
 					WizardInputsJSON:     wizardInputsJSON,
 					ProvisionOutputsJSON: provisionOutputsJSON,
@@ -150,6 +161,7 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 				log.Info().
 					Str("env_id", env.ID).
 					Str("metadata_id", metadata.ID).
+					Str("user_id", user.ID).
 					Msg("persisted environment metadata to database")
 			}
 
@@ -246,26 +258,33 @@ func (c *EnvironmentController) GetEnvironmentMetadata(ctx *gin.Context) {
 		return
 	}
 
-	// Look up the Mirage environment by Railway ID
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Look up the Mirage environment by Railway ID with ownership check
 	var env store.Environment
-	if err := c.DB.Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
-			return
-		}
+	err = c.DB.Where("railway_environment_id = ? AND user_id = ?", railwayEnvID, user.ID).First(&env).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+		return
+	} else if err != nil {
 		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
 		return
 	}
 
-	// Look up metadata using the Mirage environment ID
+	// Look up metadata using the Mirage environment ID with ownership check
 	var metadata store.EnvironmentMetadata
-	log.Info().Str("railway_env_id", railwayEnvID).Str("mirage_env_id", env.ID).Msg("getting environment metadata")
-	if err := c.DB.Where("environment_id = ?", env.ID).First(&metadata).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment metadata not found"})
-			return
-		}
+	log.Info().Str("railway_env_id", railwayEnvID).Str("mirage_env_id", env.ID).Str("user_id", user.ID).Msg("getting environment metadata")
+	err = c.DB.Where("environment_id = ? AND user_id = ?", env.ID, user.ID).First(&metadata).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "environment metadata not found"})
+		return
+	} else if err != nil {
 		log.Error().Err(err).Str("mirage_env_id", env.ID).Msg("failed to query environment metadata")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve metadata"})
 		return
@@ -312,21 +331,28 @@ func (c *EnvironmentController) ListEnvironmentServices(ctx *gin.Context) {
 		return
 	}
 
-	// Look up the Mirage environment by Railway ID
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Look up the Mirage environment by Railway ID with ownership check
 	var env store.Environment
-	if err := c.DB.Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
-			return
-		}
+	err = c.DB.Where("railway_environment_id = ? AND user_id = ?", railwayEnvID, user.ID).First(&env).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+		return
+	} else if err != nil {
 		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
 		return
 	}
 
-	// Query services using the Mirage environment ID
+	// Query services using the Mirage environment ID (already filtered by environment ownership)
 	var services []store.Service
-	log.Info().Str("railway_env_id", railwayEnvID).Str("mirage_env_id", env.ID).Msg("listing environment services")
+	log.Info().Str("railway_env_id", railwayEnvID).Str("mirage_env_id", env.ID).Str("user_id", user.ID).Msg("listing environment services")
 	if err := c.DB.Where("environment_id = ?", env.ID).Find(&services).Error; err != nil {
 		log.Error().Err(err).Str("mirage_env_id", env.ID).Msg("failed to query services")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve services"})
@@ -344,8 +370,17 @@ func (c *EnvironmentController) ListEnvironmentServices(ctx *gin.Context) {
 
 // ListTemplates retrieves all environments marked as templates
 func (c *EnvironmentController) ListTemplates(ctx *gin.Context) {
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Filter templates by user
 	var metadataList []store.EnvironmentMetadata
-	if err := c.DB.Where("is_template = ?", true).Find(&metadataList).Error; err != nil {
+	err = c.DB.Where("is_template = ? AND user_id = ?", true, user.ID).Find(&metadataList).Error
+	if err != nil {
 		log.Error().Err(err).Msg("failed to query templates")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve templates"})
 		return
@@ -353,7 +388,7 @@ func (c *EnvironmentController) ListTemplates(ctx *gin.Context) {
 
 	dtos := make([]TemplateListItemDTO, 0, len(metadataList))
 	for _, meta := range metadataList {
-		// Fetch associated environment for additional info
+		// Fetch associated environment for additional info (already owned by user since metadata is)
 		var env store.Environment
 		if err := c.DB.Preload("Services").First(&env, "id = ?", meta.EnvironmentID).Error; err != nil {
 			log.Warn().Err(err).Str("env_id", meta.EnvironmentID).Msg("failed to load environment for template")
@@ -406,13 +441,20 @@ func (c *EnvironmentController) GetEnvironmentSnapshot(ctx *gin.Context) {
 		return
 	}
 
-	// Look up the Mirage environment by Railway ID
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Look up the Mirage environment by Railway ID with ownership check
 	var env store.Environment
-	if err := c.DB.Preload("Services").Where("railway_environment_id = ?", railwayEnvID).First(&env).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
-			return
-		}
+	err = c.DB.Preload("Services").Where("railway_environment_id = ? AND user_id = ?", railwayEnvID, user.ID).First(&env).Error
+	if err == gorm.ErrRecordNotFound {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+		return
+	} else if err != nil {
 		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("failed to query environment")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to retrieve environment"})
 		return
