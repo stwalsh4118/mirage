@@ -1,10 +1,61 @@
 package store
 
 import (
+	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
+
+// User represents a Clerk user in our local database
+// This model serves as the local representation of Clerk users and enables
+// efficient queries for resource ownership and user management.
+type User struct {
+	ID              string     `gorm:"primaryKey;type:text" json:"id"`
+	ClerkUserID     string     `gorm:"uniqueIndex;not null;type:text" json:"clerkUserId"`
+	Email           string     `gorm:"uniqueIndex;not null;type:text" json:"email"`
+	FirstName       *string    `gorm:"type:text" json:"firstName,omitempty"`
+	LastName        *string    `gorm:"type:text" json:"lastName,omitempty"`
+	ProfileImageURL *string    `gorm:"type:text" json:"profileImageUrl,omitempty"`
+	CreatedAt       time.Time  `gorm:"index" json:"createdAt"`
+	UpdatedAt       time.Time  `json:"updatedAt"`
+	LastSeenAt      *time.Time `json:"lastSeenAt,omitempty"`
+	IsActive        bool       `gorm:"index;default:true" json:"isActive"`
+
+	// Relationships (will be added in task 16-4)
+	// Environments []Environment `gorm:"foreignKey:UserID" json:"environments,omitempty"`
+	// Services     []Service     `gorm:"foreignKey:UserID" json:"services,omitempty"`
+	// Metadata     []EnvironmentMetadata `gorm:"foreignKey:UserID" json:"metadata,omitempty"`
+}
+
+// BeforeCreate hook to generate UUID if not provided
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	if u.ID == "" {
+		u.ID = uuid.New().String()
+	}
+	return nil
+}
+
+// FullName returns the user's full name, handling nil values
+func (u *User) FullName() string {
+	if u.FirstName != nil && u.LastName != nil {
+		return fmt.Sprintf("%s %s", *u.FirstName, *u.LastName)
+	}
+	if u.FirstName != nil {
+		return *u.FirstName
+	}
+	if u.LastName != nil {
+		return *u.LastName
+	}
+	return u.Email // Fallback to email
+}
+
+// TableName returns the table name for the User model
+func (User) TableName() string {
+	return "users"
+}
 
 type EnvironmentType string
 
@@ -17,6 +68,7 @@ const (
 
 type Environment struct {
 	ID                   string          `gorm:"primaryKey;type:text" json:"id"`
+	UserID               string          `gorm:"index;not null;type:text" json:"userId"`
 	Name                 string          `gorm:"index;not null" json:"name"`
 	Type                 EnvironmentType `gorm:"index;not null" json:"type"`
 	SourceRepo           string          `gorm:"type:text" json:"sourceRepo"`
@@ -30,6 +82,7 @@ type Environment struct {
 	CreatedAt            time.Time       `gorm:"index" json:"createdAt"`
 	UpdatedAt            time.Time       `json:"updatedAt"`
 
+	User     *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
 	Services []Service `gorm:"foreignKey:EnvironmentID" json:"services,omitempty"`
 }
 
@@ -42,6 +95,7 @@ const (
 
 type Service struct {
 	ID               string    `gorm:"primaryKey;type:text" json:"id"`
+	UserID           string    `gorm:"index;not null;type:text" json:"userId"`
 	EnvironmentID    string    `gorm:"index;not null" json:"environmentId"`
 	Name             string    `gorm:"index;not null" json:"name"`
 	Path             string    `gorm:"type:text" json:"path"`
@@ -75,13 +129,17 @@ type Service struct {
 	ExposedPortsJSON string  `gorm:"type:text" json:"exposedPortsJson"`          // JSON array of port numbers
 	HealthCheckPath  *string `gorm:"type:text" json:"healthCheckPath,omitempty"` // Health check endpoint path
 	StartCommand     *string `gorm:"type:text" json:"startCommand,omitempty"`    // Custom start command
+
+	User        *User        `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Environment *Environment `gorm:"foreignKey:EnvironmentID" json:"environment,omitempty"`
 }
 
 // EnvironmentMetadata stores complete wizard state and provision outputs
 // to enable environment cloning, branch-based deployments, and template creation.
 type EnvironmentMetadata struct {
 	ID            string `gorm:"primaryKey;type:text"`
-	EnvironmentID string `gorm:"index;not null"` // Foreign key to Environment
+	UserID        string `gorm:"index;not null;type:text"` // Foreign key to User
+	EnvironmentID string `gorm:"index;not null"`           // Foreign key to Environment
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
 
@@ -96,4 +154,7 @@ type EnvironmentMetadata struct {
 	// Wizard state and provision outputs (stored as JSON for flexibility)
 	WizardInputsJSON     datatypes.JSON `gorm:"type:jsonb"` // Complete wizard state (all inputs from all steps)
 	ProvisionOutputsJSON datatypes.JSON `gorm:"type:jsonb"` // Provision outputs (Railway project/environment/service IDs)
+
+	User        *User        `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Environment *Environment `gorm:"foreignKey:EnvironmentID" json:"environment,omitempty"`
 }

@@ -32,8 +32,22 @@ func TestService_SourceRepoDeployment(t *testing.T) {
 		t.Fatalf("open failed: %v", err)
 	}
 
+	// Create test user first
+	user := User{
+		ID:          "test-user-1",
+		ClerkUserID: "user_test123",
+		Email:       "test@example.com",
+		IsActive:    true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
 	service := Service{
 		ID:             "svc-1",
+		UserID:         user.ID,
 		EnvironmentID:  "env-1",
 		Name:           "api",
 		DeploymentType: DeploymentTypeSourceRepo,
@@ -66,8 +80,22 @@ func TestService_DockerImageDeployment(t *testing.T) {
 		t.Fatalf("open failed: %v", err)
 	}
 
+	// Create test user first
+	user := User{
+		ID:          "test-user-2",
+		ClerkUserID: "user_test456",
+		Email:       "test2@example.com",
+		IsActive:    true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
 	service := Service{
 		ID:              "svc-2",
+		UserID:          user.ID,
 		EnvironmentID:   "env-1",
 		Name:            "nginx",
 		DeploymentType:  DeploymentTypeDockerImage,
@@ -106,9 +134,23 @@ func TestService_DefaultDeploymentType(t *testing.T) {
 		t.Fatalf("open failed: %v", err)
 	}
 
+	// Create test user first
+	user := User{
+		ID:          "test-user-3",
+		ClerkUserID: "user_test789",
+		Email:       "test3@example.com",
+		IsActive:    true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
 	// Create service without specifying deployment type
 	service := Service{
 		ID:            "svc-3",
+		UserID:        user.ID,
 		EnvironmentID: "env-1",
 		Name:          "legacy-service",
 		CreatedAt:     time.Now(),
@@ -136,6 +178,19 @@ func TestService_BuildConfiguration(t *testing.T) {
 		t.Fatalf("open failed: %v", err)
 	}
 
+	// Create test user first
+	user := User{
+		ID:          "test-user-4",
+		ClerkUserID: "user_test101",
+		Email:       "test4@example.com",
+		IsActive:    true,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+	if err := db.Create(&user).Error; err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
 	dockerfilePath := "services/api/Dockerfile"
 	buildContext := "services/api"
 	rootDir := "services/api"
@@ -149,6 +204,7 @@ func TestService_BuildConfiguration(t *testing.T) {
 
 	service := Service{
 		ID:               "svc-build",
+		UserID:           user.ID,
 		EnvironmentID:    "env-1",
 		Name:             "api-service",
 		DeploymentType:   DeploymentTypeSourceRepo,
