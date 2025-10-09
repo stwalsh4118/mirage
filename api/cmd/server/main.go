@@ -15,6 +15,7 @@ import (
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/server"
 	"github.com/stwalsh4118/mirageapi/internal/store"
+	"github.com/stwalsh4118/mirageapi/internal/vault"
 	"gorm.io/gorm"
 )
 
@@ -56,6 +57,27 @@ func main() {
 
 	rw := railway.NewFromConfig(cfg)
 
+	// Initialize Vault client if enabled
+	var vaultClient *vault.Client
+	if cfg.VaultEnabled {
+		vaultCfg := vault.Config{
+			Address:    cfg.VaultAddr,
+			Token:      cfg.VaultToken,
+			RoleID:     cfg.VaultRoleID,
+			SecretID:   cfg.VaultSecretID,
+			Namespace:  cfg.VaultNamespace,
+			SkipVerify: cfg.VaultSkipVerify,
+			MountPath:  cfg.VaultMountPath,
+		}
+		vc, err := vault.NewClient(vaultCfg)
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to initialize Vault client, continuing without Vault")
+		} else {
+			vaultClient = vc
+			log.Info().Msg("Vault client initialized successfully")
+		}
+	}
+
 	// Start status poller (Phase 1)
 	pollInterval := time.Duration(cfg.PollIntervalSeconds) * time.Second
 	if pollInterval <= 0 {
@@ -80,7 +102,7 @@ func main() {
 		}()
 	}
 
-	engine := server.NewHTTPServer(cfg, db, rw)
+	engine := server.NewHTTPServer(cfg, db, rw, vaultClient)
 
 	port := cfg.HTTPPort
 	if port == "" {

@@ -7,12 +7,14 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/config"
 	"github.com/stwalsh4118/mirageapi/internal/controller"
 	"github.com/stwalsh4118/mirageapi/internal/logging"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/scanner"
+	"github.com/stwalsh4118/mirageapi/internal/vault"
 	"github.com/stwalsh4118/mirageapi/internal/webhooks"
 	"gorm.io/gorm"
 )
@@ -47,13 +49,23 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 
 	var db *gorm.DB
 	var rw *railway.Client
+	var vaultClient *vault.Client
 	for _, d := range deps {
 		switch v := d.(type) {
 		case *gorm.DB:
 			db = v
 		case *railway.Client:
 			rw = v
+		case *vault.Client:
+			vaultClient = v
 		}
+	}
+
+	// Log Vault availability for debugging
+	if vaultClient != nil {
+		log.Info().Msg("Vault client available for secret management")
+	} else {
+		log.Info().Msg("Vault client not initialized - using fallback configuration")
 	}
 
 	api := r.Group("/api")
