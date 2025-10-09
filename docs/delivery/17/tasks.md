@@ -12,7 +12,7 @@ This document lists all tasks associated with PBI 17.
 | 17-2 | [Setup Docker Compose for local Vault development](./17-2.md) | Done | Add Vault service to docker-compose.yml for local development with dev mode |
 | 17-3 | [Deploy Vault server on Railway with persistent storage](./17-3.md) | Proposed | Deploy Vault as Railway service with Raft storage and volume for data persistence |
 | 17-4 | [Create Vault HTTP client wrapper and implement initialization](./17-4.md) | Done | Create vault package with HTTP client wrapper, initialization, and configuration loading |
-| 17-5 | [Implement Vault authentication with token and AppRole](./17-5.md) | Proposed | Implement token auth for dev and AppRole auth for production with automatic token renewal |
+| 17-5 | [Implement Vault authentication with token and AppRole](./17-5.md) | Done | Implement token auth for dev and AppRole auth for production with automatic token renewal |
 | 17-6 | [Implement health checking and circuit breaker for Vault](./17-6.md) | Proposed | Add Vault connectivity health checks, circuit breaker pattern, and graceful degradation |
 | 17-7 | [Implement secret caching layer with TTL](./17-7.md) | Proposed | Create in-memory cache for secrets with 5-minute TTL and invalidation on updates |
 | 17-8 | [Define SecretStore interface and domain types](./17-8.md) | Proposed | Define SecretStore interface, Secret, SecretMetadata, and DockerCredentials types |
