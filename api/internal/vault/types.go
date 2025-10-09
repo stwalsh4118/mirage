@@ -65,3 +65,50 @@ type TokenRenewalRequest struct {
 type TokenRenewalResponse struct {
 	Auth AuthInfo `json:"auth"`
 }
+
+// VaultStatus represents the health status of the Vault server
+type VaultStatus struct {
+	Available   bool   `json:"available"`
+	Initialized bool   `json:"initialized"`
+	Sealed      bool   `json:"sealed"`
+	Version     string `json:"version"`
+	ClusterID   string `json:"cluster_id"`
+	ClusterName string `json:"cluster_name"`
+}
+
+// CircuitState represents the state of the circuit breaker
+type CircuitState int
+
+const (
+	// CircuitClosed means requests are allowed through
+	CircuitClosed CircuitState = iota
+	// CircuitOpen means requests are blocked due to failures
+	CircuitOpen
+	// CircuitHalfOpen means trying to recover, allowing limited requests
+	CircuitHalfOpen
+)
+
+// String returns the string representation of CircuitState
+func (s CircuitState) String() string {
+	switch s {
+	case CircuitClosed:
+		return "closed"
+	case CircuitOpen:
+		return "open"
+	case CircuitHalfOpen:
+		return "half-open"
+	default:
+		return "unknown"
+	}
+}
+
+const (
+	// DefaultFailureThreshold is the number of failures before opening the circuit
+	DefaultFailureThreshold = 5
+	// DefaultCircuitTimeout is the time before transitioning to half-open
+	DefaultCircuitTimeout = 30 * time.Second
+	// DefaultSuccessThreshold is the number of successes needed in half-open to close
+	DefaultSuccessThreshold = 2
+	// DefaultHealthCheckInterval is the interval for periodic health checks
+	DefaultHealthCheckInterval = 30 * time.Second
+)

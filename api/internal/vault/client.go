@@ -16,14 +16,18 @@ import (
 
 // Client is an HTTP client wrapper for interacting with Vault's HTTP API
 type Client struct {
-	address     string
-	token       string
-	tokenMu     sync.RWMutex
-	httpClient  *http.Client
-	namespace   string
-	mountPath   string
-	renewalStop chan struct{}
-	stopOnce    sync.Once
+	address        string
+	token          string
+	tokenMu        sync.RWMutex
+	httpClient     *http.Client
+	namespace      string
+	mountPath      string
+	renewalStop    chan struct{}
+	stopOnce       sync.Once
+	circuitBreaker *CircuitBreaker
+	healthStop     chan struct{}
+	healthStopOnce sync.Once
+	shutdownOnce   sync.Once
 }
 
 // NewClient creates a new Vault HTTP client with the provided configuration
@@ -49,18 +53,23 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	client := &Client{
-		address:     cfg.Address,
-		token:       cfg.Token,
-		httpClient:  httpClient,
-		namespace:   cfg.Namespace,
-		mountPath:   cfg.MountPath,
-		renewalStop: make(chan struct{}),
+		address:        cfg.Address,
+		token:          cfg.Token,
+		httpClient:     httpClient,
+		namespace:      cfg.Namespace,
+		mountPath:      cfg.MountPath,
+		renewalStop:    make(chan struct{}),
+		circuitBreaker: NewCircuitBreaker(),
+		healthStop:     make(chan struct{}),
 	}
 
 	// Authenticate with Vault
 	if err := client.authenticate(cfg); err != nil {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
+
+	// Start periodic health checking
+	go client.startHealthChecker(context.Background(), DefaultHealthCheckInterval)
 
 	log.Info().
 		Str("address", cfg.Address).
@@ -71,8 +80,16 @@ func NewClient(cfg Config) (*Client, error) {
 	return client, nil
 }
 
-// makeRequest is a helper method for making HTTP requests to Vault
+// makeRequest is a helper method for making HTTP requests to Vault with circuit breaker protection
 func (c *Client) makeRequest(ctx context.Context, method, path string, body interface{}, result interface{}) error {
+	// Wrap with circuit breaker
+	return c.circuitBreaker.Call(func() error {
+		return c.doRequest(ctx, method, path, body, result)
+	})
+}
+
+// doRequest performs the actual HTTP request to Vault
+func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}, result interface{}) error {
 	// Create request body if needed
 	var reqBody io.Reader
 	if body != nil {
@@ -133,30 +150,66 @@ func (c *Client) makeRequest(ctx context.Context, method, path string, body inte
 
 // HealthCheck performs a health check against the Vault server
 func (c *Client) HealthCheck(ctx context.Context) error {
+	status, err := c.GetStatus(ctx)
+	if err != nil {
+		return err
+	}
+
+	if status.Sealed {
+		return fmt.Errorf("vault is sealed")
+	}
+
+	if !status.Initialized {
+		return fmt.Errorf("vault is not initialized")
+	}
+
+	if !status.Available {
+		return fmt.Errorf("vault is not available")
+	}
+
+	return nil
+}
+
+// GetStatus retrieves detailed status information from Vault
+func (c *Client) GetStatus(ctx context.Context) (*VaultStatus, error) {
+	// Health check doesn't require authentication, so use direct HTTP
 	req, err := http.NewRequestWithContext(ctx, "GET", c.address+"/v1/sys/health", nil)
 	if err != nil {
-		return fmt.Errorf("create health check request: %w", err)
+		return &VaultStatus{Available: false}, fmt.Errorf("create health check request: %w", err)
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("execute health check: %w", err)
+		return &VaultStatus{Available: false}, fmt.Errorf("execute health check: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Vault health endpoint returns different status codes based on state
-	// 200 = healthy, 503 = sealed, 501 = not initialized
-	if resp.StatusCode == 503 {
-		return fmt.Errorf("vault is sealed")
-	}
-	if resp.StatusCode == 501 {
-		return fmt.Errorf("vault is not initialized")
-	}
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("vault health check failed with status %d", resp.StatusCode)
+	// Parse health response
+	var healthResp struct {
+		Initialized bool   `json:"initialized"`
+		Sealed      bool   `json:"sealed"`
+		Standby     bool   `json:"standby"`
+		Version     string `json:"version"`
+		ClusterName string `json:"cluster_name"`
+		ClusterID   string `json:"cluster_id"`
 	}
 
-	return nil
+	if err := json.NewDecoder(resp.Body).Decode(&healthResp); err != nil {
+		return &VaultStatus{Available: false}, fmt.Errorf("decode health response: %w", err)
+	}
+
+	// Vault health endpoint returns different status codes based on state
+	// 200 = healthy, 503 = sealed, 501 = not initialized
+	available := resp.StatusCode == 200
+
+	return &VaultStatus{
+		Available:   available,
+		Initialized: healthResp.Initialized,
+		Sealed:      healthResp.Sealed,
+		Version:     healthResp.Version,
+		ClusterID:   healthResp.ClusterID,
+		ClusterName: healthResp.ClusterName,
+	}, nil
 }
 
 // authenticate selects and executes the appropriate authentication method
@@ -310,4 +363,67 @@ func (c *Client) setToken(token string) {
 	c.tokenMu.Lock()
 	defer c.tokenMu.Unlock()
 	c.token = token
+}
+
+// GetCircuitState returns the current state of the circuit breaker
+func (c *Client) GetCircuitState() CircuitState {
+	return c.circuitBreaker.GetState()
+}
+
+// GetCircuitMetrics returns metrics for the circuit breaker
+func (c *Client) GetCircuitMetrics() map[string]interface{} {
+	return c.circuitBreaker.GetMetrics()
+}
+
+// ResetCircuit manually resets the circuit breaker to closed state
+func (c *Client) ResetCircuit() {
+	c.circuitBreaker.Reset()
+}
+
+// startHealthChecker starts a background goroutine that periodically checks Vault health
+func (c *Client) startHealthChecker(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	log.Info().
+		Dur("interval", interval).
+		Msg("starting Vault health checker")
+
+	for {
+		select {
+		case <-c.healthStop:
+			log.Info().Msg("stopping Vault health checker")
+			return
+		case <-ctx.Done():
+			log.Info().Msg("context cancelled, stopping Vault health checker")
+			return
+		case <-ticker.C:
+			if err := c.HealthCheck(ctx); err != nil {
+				log.Warn().
+					Err(err).
+					Str("circuit_state", c.GetCircuitState().String()).
+					Msg("Vault health check failed")
+			} else {
+				log.Debug().
+					Str("circuit_state", c.GetCircuitState().String()).
+					Msg("Vault health check passed")
+			}
+		}
+	}
+}
+
+// StopHealth stops the periodic health checker
+func (c *Client) StopHealth() {
+	c.healthStopOnce.Do(func() {
+		close(c.healthStop)
+	})
+}
+
+// Shutdown gracefully stops all background goroutines
+func (c *Client) Shutdown() {
+	c.shutdownOnce.Do(func() {
+		c.StopRenewal()
+		c.StopHealth()
+		log.Info().Msg("Vault client shutdown complete")
+	})
 }
