@@ -15,8 +15,8 @@ This document lists all tasks associated with PBI 17.
 | 17-5 | [Implement Vault authentication with token and AppRole](./17-5.md) | Done | Implement token auth for dev and AppRole auth for production with automatic token renewal |
 | 17-6 | [Implement health checking and circuit breaker for Vault](./17-6.md) | Done | Add Vault connectivity health checks, circuit breaker pattern, and graceful degradation |
 | 17-7 | [Implement secret caching layer with TTL](./17-7.md) | Proposed | Create in-memory cache for secrets with 5-minute TTL and invalidation on updates |
-| 17-8 | [Define SecretStore interface and domain types](./17-8.md) | Proposed | Define SecretStore interface, Secret, SecretMetadata, and DockerCredentials types |
-| 17-9 | [Implement Railway token management in SecretStore](./17-9.md) | Proposed | Implement store, get, delete, rotate, and validate methods for Railway tokens |
+| 17-8 | [Define SecretStore interface and domain types](./17-8.md) | Done | Define SecretStore interface, Secret, SecretMetadata, and DockerCredentials types |
+| 17-9 | [Implement Railway token management in SecretStore](./17-9.md) | Done | Implement store, get, delete, rotate, and validate methods for Railway tokens |
 | 17-10 | [Implement GitHub token management in SecretStore](./17-10.md) | Proposed | Implement store, get, delete, and validate methods for GitHub PATs |
 | 17-11 | [Implement Docker credentials management in SecretStore](./17-11.md) | Proposed | Implement store, get, list, and delete methods for Docker registry credentials |
 | 17-12 | [Implement environment-specific secrets in SecretStore](./17-12.md) | Proposed | Implement store, get, get-all, delete, and bulk operations for environment secrets |
