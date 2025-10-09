@@ -7,11 +7,13 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/config"
 	"github.com/stwalsh4118/mirageapi/internal/controller"
 	"github.com/stwalsh4118/mirageapi/internal/logging"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/scanner"
+	"github.com/stwalsh4118/mirageapi/internal/webhooks"
 	"gorm.io/gorm"
 )
 
@@ -55,29 +57,51 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 	}
 
 	api := r.Group("/api")
-	v1 := api.Group("/v1")
-	if db != nil && rw != nil {
-		ec := &controller.EnvironmentController{DB: db, Railway: rw}
-		ec.RegisterRoutes(v1)
-		sc := &controller.ServicesController{Railway: rw, DB: db}
-		sc.RegisterRoutes(v1)
-		lc := &controller.LogsController{DB: db, Railway: rw, AllowedOrigins: cfg.AllowedOrigins}
-		lc.RegisterRoutes(v1)
 
-		// Initialize Dockerfile scanner for discovery
-		githubToken := os.Getenv("GITHUB_SERVICE_TOKEN")
-		scanCache := scanner.NewScanCache(scanner.DefaultCacheTTL)
-		githubScanner := scanner.NewGitHubScanner(githubToken, scanCache)
-		dc := &controller.DiscoveryController{Scanner: githubScanner}
-		dc.RegisterRoutes(v1)
+	// Public webhook endpoints (no auth)
+	if db != nil && cfg.ClerkWebhookSecret != "" {
+		webhookHandler := webhooks.NewClerkWebhookHandler(db, cfg.ClerkWebhookSecret)
+		api.POST("/webhooks/clerk", webhookHandler.HandleWebhook)
 	}
 
+	// v1 API routes
+	v1 := api.Group("/v1")
+
+	// Public health endpoint
 	v1.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"status": "ok",
 			"env":    cfg.Environment,
 		})
 	})
+
+	// Apply authentication middleware to all other v1 routes
+	if db != nil {
+		// Create authenticated route group
+		authed := v1.Group("")
+		authed.Use(auth.RequireAuth(db))
+		{
+			if rw != nil {
+				ec := &controller.EnvironmentController{DB: db, Railway: rw}
+				ec.RegisterRoutes(authed)
+				sc := &controller.ServicesController{Railway: rw, DB: db}
+				sc.RegisterRoutes(authed)
+				lc := &controller.LogsController{DB: db, Railway: rw, AllowedOrigins: cfg.AllowedOrigins}
+				lc.RegisterRoutes(authed)
+			}
+
+			// Initialize Dockerfile scanner for discovery
+			githubToken := os.Getenv("GITHUB_SERVICE_TOKEN")
+			scanCache := scanner.NewScanCache(scanner.DefaultCacheTTL)
+			githubScanner := scanner.NewGitHubScanner(githubToken, scanCache)
+			dc := &controller.DiscoveryController{Scanner: githubScanner}
+			dc.RegisterRoutes(authed)
+
+			// TODO: Add UserController when task 16-9 is implemented
+			// uc := &controller.UserController{DB: db}
+			// uc.RegisterRoutes(authed)
+		}
+	}
 
 	return r
 }
