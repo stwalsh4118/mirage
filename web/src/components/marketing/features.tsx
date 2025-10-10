@@ -2,20 +2,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function Features() {
   const features = [
-    { title: "One-click environments", description: "Deploy complete environments with a single click. No complex configuration required.", icon: "⚡" },
-    { title: "Dev/Prod templates", description: "Pre-configured templates that mirror your production setup perfectly.", icon: "🎯" },
-    { title: "Real-time status", description: "Monitor environment health and deployment progress in real-time.", icon: "📊" },
-    { title: "Secure tokens", description: "Automatic token management and secure environment variable handling.", icon: "🔐" },
-    { title: "Railway-native", description: "Built specifically for Railway with deep platform integration.", icon: "🚄" },
-    { title: "Monorepo-aware", description: "Smart detection and deployment of monorepo services and dependencies.", icon: "📦" },
+    { title: "Project Dashboard", description: "View all your Railway projects, environments, and services in one unified interface.", icon: "📊" },
+    { title: "Environment Wizard", description: "Create new environments with a guided wizard that simplifies complex Railway configuration.", icon: "🪄" },
+    { title: "Real-time Updates", description: "Monitor project and service status with live updates powered by Railway's API.", icon: "⚡" },
+    { title: "Secure by Default", description: "Built-in authentication with Clerk and secure management of Railway API tokens.", icon: "🔐" },
+    { title: "Railway-Native", description: "Deep integration with Railway's GraphQL API for seamless infrastructure management.", icon: "🚄" },
+    { title: "Multi-Project Support", description: "Manage multiple Railway projects and their environments from a single dashboard.", icon: "🎯" },
   ];
 
   return (
     <section className="py-24 relative section-soft-alt border-t border-border/40">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight mb-4">Everything you need for perfect environments</h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">From development to production, Mirage handles the complexity so you can focus on building.</p>
+          <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight mb-4">Powerful Railway management made simple</h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Everything you need to manage your Railway infrastructure efficiently in one beautiful interface.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
           {features.map((feature, index) => {

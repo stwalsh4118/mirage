@@ -17,10 +17,10 @@ interface Environment {
 export function EnvironmentCards() {
   const [loading, setLoading] = useState(true);
   const [environments] = useState<Environment[]>([
-    { name: "api-service", type: "Dev", status: "Running", url: "api-dev.mirage.app", createdAt: "2 hours ago" },
-    { name: "frontend-app", type: "Prod", status: "Running", url: "app.mirage.com", createdAt: "1 day ago" },
-    { name: "worker-queue", type: "Staging", status: "Building", url: "worker-staging.mirage.app", createdAt: "5 minutes ago" },
-    { name: "analytics-db", type: "Dev", status: "Stopped", url: "analytics-dev.mirage.app", createdAt: "3 days ago" },
+    { name: "backend-api", type: "Prod", status: "Running", url: "api.yourapp.railway.app", createdAt: "2 hours ago" },
+    { name: "web-frontend", type: "Prod", status: "Running", url: "app.yourapp.railway.app", createdAt: "1 day ago" },
+    { name: "worker-service", type: "Staging", status: "Building", url: "worker-staging.railway.app", createdAt: "5 minutes ago" },
+    { name: "postgres-db", type: "Dev", status: "Running", url: "N/A", createdAt: "3 days ago" },
   ]);
 
   useEffect(() => {
@@ -35,8 +35,8 @@ export function EnvironmentCards() {
     <section className="py-24 section-soft-alt border-t border-border/40">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight mb-4">Live environment dashboard</h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">See how your environments look in the Mirage dashboard with real-time status updates.</p>
+          <h2 className="text-3xl lg:text-4xl font-semibold tracking-tight mb-4">Your Railway infrastructure at a glance</h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">Browse projects, monitor service health, and manage environments with live status updates from Railway.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-6xl mx-auto">
           {environments.map((env, index) => (

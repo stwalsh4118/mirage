@@ -6,7 +6,7 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Mirage</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Environment-as-a-Service for modern development teams.
+              A powerful dashboard for managing your Railway infrastructure.
             </p>
           </div>
 
