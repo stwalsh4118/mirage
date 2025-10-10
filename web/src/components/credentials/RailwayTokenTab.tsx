@@ -179,7 +179,7 @@ export function RailwayTokenTab() {
                   <p className="text-sm font-medium">How to get your Railway API token:</p>
                   <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>Go to Railway Account Settings</li>
-                    <li>Navigate to the "Tokens" section</li>
+                    <li>Navigate to the &ldquo;Tokens&rdquo; section</li>
                     <li>Create a new token or copy an existing one</li>
                     <li>Paste it below to get started</li>
                   </ol>
