@@ -4,6 +4,10 @@ FROM node:20-alpine AS builder
 ARG NODE_ENV=production
 ARG NEXT_PUBLIC_API_BASE_URL
 
+# Clerk environment variables needed during build
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ARG CLERK_SECRET_KEY
+
 WORKDIR /app
 
 # Copy package files from web directory (build context is repo root)
