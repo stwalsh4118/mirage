@@ -13,20 +13,19 @@ import (
 
 // GitHubScanner implements Scanner using the GitHub API.
 type GitHubScanner struct {
-	serviceToken string
-	cache        *ScanCache
+	cache *ScanCache
 }
 
-// NewGitHubScanner creates a new GitHub scanner with a service token and cache.
-// serviceToken: GitHub PAT for service-level scanning (can be empty for public repos only)
-func NewGitHubScanner(serviceToken string, cache *ScanCache) *GitHubScanner {
+// NewGitHubScanner creates a new GitHub scanner with a cache.
+// User tokens are provided per-request via ScanRepository's userToken parameter.
+// No service-level token is used - tokens come from Vault or the request.
+func NewGitHubScanner(cache *ScanCache) *GitHubScanner {
 	if cache == nil {
 		cache = NewScanCache(DefaultCacheTTL)
 	}
 
 	return &GitHubScanner{
-		serviceToken: serviceToken,
-		cache:        cache,
+		cache: cache,
 	}
 }
 
@@ -43,11 +42,8 @@ func (s *GitHubScanner) ScanRepository(ctx context.Context, owner, repo, branch,
 		return cached, nil
 	}
 
-	// Determine which token to use
-	token := s.selectToken(userToken)
-
-	// Create GitHub client
-	client := s.createClient(ctx, token)
+	// Create GitHub client with user token (if provided)
+	client := s.createClient(ctx, userToken)
 
 	log.Info().
 		Str("owner", owner).
@@ -98,14 +94,6 @@ func (s *GitHubScanner) ScanRepository(ctx context.Context, owner, repo, branch,
 	s.cache.Set(cacheKey, dockerfiles)
 
 	return dockerfiles, nil
-}
-
-// selectToken determines which GitHub token to use.
-func (s *GitHubScanner) selectToken(userToken string) string {
-	if userToken != "" {
-		return userToken
-	}
-	return s.serviceToken
 }
 
 // createClient creates a GitHub API client with authentication.

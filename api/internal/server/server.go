@@ -2,7 +2,6 @@ package server
 
 import (
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -112,10 +111,13 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 			}
 
 			// Initialize Dockerfile scanner for discovery
-			githubToken := os.Getenv("GITHUB_SERVICE_TOKEN")
+			// Note: No service-level token - user tokens come from Vault or request
 			scanCache := scanner.NewScanCache(scanner.DefaultCacheTTL)
-			githubScanner := scanner.NewGitHubScanner(githubToken, scanCache)
-			dc := &controller.DiscoveryController{Scanner: githubScanner}
+			githubScanner := scanner.NewGitHubScanner(scanCache)
+			dc := &controller.DiscoveryController{
+				Scanner: githubScanner,
+				Vault:   vaultClient,
+			}
 			dc.RegisterRoutes(authed)
 
 			// TODO: Add UserController when task 16-9 is implemented

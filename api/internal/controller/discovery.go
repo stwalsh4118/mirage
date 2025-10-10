@@ -8,7 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/scanner"
+	"github.com/stwalsh4118/mirageapi/internal/vault"
 )
 
 // DockerfileScanner defines the interface for scanning repositories for Dockerfiles.
@@ -19,6 +21,12 @@ type DockerfileScanner interface {
 // DiscoveryController handles Dockerfile discovery endpoints.
 type DiscoveryController struct {
 	Scanner DockerfileScanner
+	Vault   VaultClient
+}
+
+// VaultClient defines the interface for fetching GitHub tokens from Vault
+type VaultClient interface {
+	GetGitHubToken(ctx context.Context, userID string) (string, error)
 }
 
 // RegisterRoutes registers discovery-related routes under the provided router group.
@@ -89,16 +97,53 @@ func (c *DiscoveryController) DiscoverDockerfiles(ctx *gin.Context) {
 		return
 	}
 
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to get current user for discovery")
+		// Continue without authentication - will use provided token or no token
+	}
+
+	// Determine which GitHub token to use (priority order):
+	// 1. Token provided in request body (for override/testing)
+	// 2. User's token from Vault (if authenticated and configured)
+	// 3. No token (public repositories only)
+	githubToken := req.UserToken
+	tokenSource := "request"
+
+	if githubToken == "" && user != nil && c.Vault != nil {
+		// Try to fetch user's GitHub token from Vault
+		vaultToken, err := c.Vault.GetGitHubToken(ctx, user.ID)
+		if err == nil {
+			githubToken = vaultToken
+			tokenSource = "vault"
+			log.Debug().
+				Str("user_id", user.ID).
+				Msg("using github token from vault for discovery")
+		} else if err != vault.ErrSecretNotFound {
+			// Log non-404 errors but continue
+			log.Warn().
+				Err(err).
+				Str("user_id", user.ID).
+				Msg("failed to fetch github token from vault, continuing without token")
+		}
+	}
+
+	if githubToken == "" {
+		tokenSource = "none"
+	}
+
 	log.Info().
 		Str("owner", req.Owner).
 		Str("repo", req.Repo).
 		Str("branch", req.Branch).
 		Str("request_id", req.RequestID).
-		Bool("has_user_token", req.UserToken != "").
+		Str("token_source", tokenSource).
+		Bool("authenticated", user != nil).
 		Msg("dockerfile discovery requested")
 
 	// Scan repository
-	dockerfiles, err := c.Scanner.ScanRepository(ctx, req.Owner, req.Repo, req.Branch, req.UserToken)
+	dockerfiles, err := c.Scanner.ScanRepository(ctx, req.Owner, req.Repo, req.Branch, githubToken)
 	if err != nil {
 		log.Error().
 			Err(err).
