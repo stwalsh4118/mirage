@@ -8,7 +8,7 @@ This document lists all tasks associated with PBI 20.
 
 | Task ID | Name | Status | Description |
 | :------ | :--------------------------------------- | :------- | :--------------------------------- |
-| 20-1 | [Set up docs routing and page structure](./20-1.md) | Proposed | Add /docs routes and create documentation layout component |
+| 20-1 | [Set up docs routing and page structure](./20-1.md) | Review | Add /docs routes and create documentation layout component |
 | 20-2 | [Integrate markdown renderer and styling](./20-2.md) | Proposed | Add react-markdown, syntax highlighting, and styled components |
 | 20-3 | [Create documentation navigation and sidebar](./20-3.md) | Proposed | Build sidebar navigation with section hierarchy and breadcrumbs |
 | 20-4 | [Write getting started documentation](./20-4.md) | Proposed | Create getting started guide with prerequisites, setup, and first environment |

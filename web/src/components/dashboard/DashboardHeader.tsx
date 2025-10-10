@@ -22,6 +22,9 @@ export function DashboardHeader() {
           <Input placeholder="Search environments…  (⌘K)" className="h-9" />
         </div>
         <div className="flex items-center gap-2 pl-2">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/docs">Docs</Link>
+          </Button>
           <CreateEnvironmentDialog trigger={<Button size="sm">New Environment</Button>} />
           <UserButton
             appearance={{
