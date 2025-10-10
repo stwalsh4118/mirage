@@ -33,7 +33,15 @@ export function DashboardHeader() {
               },
             }}
             afterSignOutUrl="/"
-          />
+          >
+            <UserButton.MenuItems>
+              <UserButton.Link
+                label="Credentials"
+                labelIcon={<span className="text-xs">🔑</span>}
+                href="/settings/credentials"
+              />
+            </UserButton.MenuItems>
+          </UserButton>
         </div>
       </div>
     </div>
