@@ -77,9 +77,22 @@ From the UI, you can:
 - Manage policies
 - Test API calls using the built-in OpenAPI explorer (type `api` in the console)
 
-### Step 5: Initialize KV v2 Secrets Engine (First Time Only)
+### Step 5: KV v2 Secrets Engine - Automatic Setup ✨
 
-The Mirage application expects a KV v2 secrets engine mounted at `/mirage`. Initialize it:
+**The Mirage API automatically sets up the KV v2 secrets engine!**
+
+When you start the API, it will:
+- ✅ Check if a mount exists at the configured path (default: `mirage`)
+- ✅ Verify it's configured as KV version 2
+- ✅ Automatically create the mount if it doesn't exist
+- ℹ️ Skip creation if the mount already exists and is KV v2
+- ⚠️ Fail with a clear error if a mount exists but isn't KV v2
+
+**No manual setup required!** Just start your API and it will handle the rest.
+
+**Manual Setup (Optional):**
+
+If you prefer to set it up manually:
 
 ```bash
 # Using Docker exec
@@ -95,7 +108,7 @@ Or using curl:
 # Enable KV v2 at /mirage
 curl -X POST \
   -H "X-Vault-Token: dev-root-token" \
-  -d '{"type":"kv-v2"}' \
+  -d '{"type":"kv","options":{"version":"2"}}' \
   http://localhost:8200/v1/sys/mounts/mirage
 ```
 
