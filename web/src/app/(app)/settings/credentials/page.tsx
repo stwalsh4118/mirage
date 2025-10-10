@@ -6,6 +6,9 @@ import { Key, Github, Package, FolderLock } from "lucide-react";
 import { RailwayTokenTab } from "@/components/credentials/RailwayTokenTab";
 import { GitHubTokenTab } from "@/components/credentials/GitHubTokenTab";
 
+// Force dynamic rendering - don't prerender this page at build time
+export const dynamic = 'force-dynamic';
+
 export default function CredentialsPage() {
   return (
     <div className="space-y-6">
