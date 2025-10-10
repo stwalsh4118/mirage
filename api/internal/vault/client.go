@@ -68,6 +68,11 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
+	// Ensure KV v2 secrets engine is mounted at the configured path
+	if err := client.ensureMountExists(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ensure mount exists: %w", err)
+	}
+
 	// Start periodic health checking
 	go client.startHealthChecker(context.Background(), DefaultHealthCheckInterval)
 
@@ -210,6 +215,64 @@ func (c *Client) GetStatus(ctx context.Context) (*VaultStatus, error) {
 		ClusterID:   healthResp.ClusterID,
 		ClusterName: healthResp.ClusterName,
 	}, nil
+}
+
+// ensureMountExists checks if the KV v2 secrets engine is mounted at the configured path
+// and creates it if it doesn't exist. This ensures the mount is ready for use.
+func (c *Client) ensureMountExists(ctx context.Context) error {
+	// Check if mount already exists
+	mountPath := fmt.Sprintf("/v1/sys/mounts/%s", c.mountPath)
+
+	var mountInfo map[string]interface{}
+	err := c.doRequest(ctx, "GET", mountPath, nil, &mountInfo)
+
+	if err == nil {
+		// Mount exists, verify it's KV v2
+		if mountType, ok := mountInfo["type"].(string); ok && mountType == "kv" {
+			if options, ok := mountInfo["options"].(map[string]interface{}); ok {
+				if version, ok := options["version"].(string); ok && version == "2" {
+					log.Debug().
+						Str("mount_path", c.mountPath).
+						Msg("KV v2 secrets engine already mounted")
+					return nil
+				}
+			}
+		}
+		// Mount exists but wrong type/version
+		log.Warn().
+			Str("mount_path", c.mountPath).
+			Msg("Mount exists but is not KV v2 - will not modify existing mount")
+		return fmt.Errorf("mount %s exists but is not configured as KV v2", c.mountPath)
+	}
+
+	// Check if error is 404 (mount doesn't exist) or other error
+	if !isNotFoundError(err) {
+		return fmt.Errorf("failed to check mount status: %w", err)
+	}
+
+	// Mount doesn't exist, create it
+	log.Info().
+		Str("mount_path", c.mountPath).
+		Msg("KV v2 secrets engine not found, creating mount")
+
+	mountConfig := map[string]interface{}{
+		"type": "kv",
+		"options": map[string]interface{}{
+			"version": "2",
+		},
+		"description": "Mirage secrets storage (KV v2)",
+	}
+
+	err = c.doRequest(ctx, "POST", mountPath, mountConfig, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create KV v2 mount at %s: %w", c.mountPath, err)
+	}
+
+	log.Info().
+		Str("mount_path", c.mountPath).
+		Msg("Successfully created KV v2 secrets engine mount")
+
+	return nil
 }
 
 // authenticate selects and executes the appropriate authentication method
@@ -426,4 +489,28 @@ func (c *Client) Shutdown() {
 		c.StopHealth()
 		log.Info().Msg("Vault client shutdown complete")
 	})
+}
+
+// GetMountPath returns the KV v2 secrets engine mount path
+func (c *Client) GetMountPath() string {
+	return c.mountPath
+}
+
+// DeletePathRecursive deletes all secrets under a given path recursively
+// This is useful for cleaning up all secrets for a user
+func (c *Client) DeletePathRecursive(ctx context.Context, path string) error {
+	// For KV v2, we need to delete the metadata to permanently remove the secret
+	// Deleting metadata also deletes all versions
+	err := c.doRequest(ctx, "DELETE", path, nil, nil)
+	if err != nil {
+		// If the path doesn't exist, that's not an error
+		if isNotFoundError(err) {
+			log.Debug().Str("path", path).Msg("path not found, nothing to delete")
+			return nil
+		}
+		return fmt.Errorf("failed to delete path %s: %w", path, err)
+	}
+
+	log.Debug().Str("path", path).Msg("deleted path from vault")
+	return nil
 }
