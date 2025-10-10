@@ -3,6 +3,7 @@ package vault
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -22,25 +23,8 @@ func (c *Client) StoreRailwayToken(ctx context.Context, userID, token string) er
 	// Build the secret path (does not include mount - that's added in the KV v2 API endpoint)
 	secretPath := BuildRailwayTokenPath(userID)
 
-	// Prepare secret data with metadata
-	secretData := map[string]interface{}{
-		"token": token,
-		"metadata": map[string]interface{}{
-			"created_by":  userID,
-			"created_at":  time.Now().UTC().Format(time.RFC3339),
-			"secret_type": SecretTypeRailway,
-		},
-	}
-
-	// Vault KV v2 requires wrapping data in a "data" field
-	requestBody := map[string]interface{}{
-		"data": secretData,
-	}
-
-	// Write to Vault using the KV v2 data endpoint
-	// Format: /v1/{mount}/data/{path}
-	kvPath := fmt.Sprintf("/v1/%s/data/%s", c.mountPath, secretPath)
-	err := c.makeRequest(ctx, "POST", kvPath, requestBody, nil)
+	// Use generic helper to store the token
+	err := c.storeTokenSecret(ctx, secretPath, SecretTypeRailway, token, userID)
 	if err != nil {
 		return fmt.Errorf("failed to store railway token: %w", err)
 	}
@@ -64,33 +48,13 @@ func (c *Client) GetRailwayToken(ctx context.Context, userID string) (string, er
 	// Build the secret path (does not include mount - that's added in the KV v2 API endpoint)
 	secretPath := BuildRailwayTokenPath(userID)
 
-	// Read from Vault using the KV v2 data endpoint
-	// Format: /v1/{mount}/data/{path}
-	kvPath := fmt.Sprintf("/v1/%s/data/%s", c.mountPath, secretPath)
-
-	var response struct {
-		Data struct {
-			Data map[string]interface{} `json:"data"`
-		} `json:"data"`
-	}
-
-	err := c.makeRequest(ctx, "GET", kvPath, nil, &response)
+	// Use generic helper to retrieve the token
+	token, err := c.getTokenSecret(ctx, secretPath)
 	if err != nil {
-		// Check if it's a 404 - secret not found
-		if isNotFoundError(err) {
+		if err == ErrSecretNotFound {
 			return "", ErrSecretNotFound
 		}
 		return "", fmt.Errorf("failed to read railway token: %w", err)
-	}
-
-	// Extract token from nested data structure
-	if response.Data.Data == nil {
-		return "", ErrSecretNotFound
-	}
-
-	token, ok := response.Data.Data["token"].(string)
-	if !ok {
-		return "", fmt.Errorf("token not found in secret data")
 	}
 
 	log.Debug().
@@ -112,14 +76,10 @@ func (c *Client) DeleteRailwayToken(ctx context.Context, userID string) error {
 	// Build the secret path (does not include mount - that's added in the KV v2 API endpoint)
 	secretPath := BuildRailwayTokenPath(userID)
 
-	// Delete from Vault using the KV v2 data endpoint
-	// Format: /v1/{mount}/data/{path}
-	kvPath := fmt.Sprintf("/v1/%s/data/%s", c.mountPath, secretPath)
-
-	err := c.makeRequest(ctx, "DELETE", kvPath, nil, nil)
+	// Use generic helper to delete the token
+	err := c.deleteTokenSecret(ctx, secretPath)
 	if err != nil {
-		// Check if it's a 404 - secret not found
-		if isNotFoundError(err) {
+		if err == ErrSecretNotFound {
 			return ErrSecretNotFound
 		}
 		return fmt.Errorf("failed to delete railway token: %w", err)
@@ -242,12 +202,8 @@ func isNotFoundError(err error) bool {
 // containsAny checks if a string contains any of the given substrings
 func containsAny(s string, substrs ...string) bool {
 	for _, substr := range substrs {
-		if len(s) >= len(substr) {
-			for i := 0; i <= len(s)-len(substr); i++ {
-				if s[i:i+len(substr)] == substr {
-					return true
-				}
-			}
+		if strings.Contains(s, substr) {
+			return true
 		}
 	}
 	return false
