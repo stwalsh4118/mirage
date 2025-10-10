@@ -99,6 +99,33 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "railway client not configured"})
 		return
 	}
+
+	// Get authenticated user
+	user, err := auth.GetCurrentUser(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings",
+			})
+		} else {
+			// Log the actual error server-side for debugging
+			log.Error().Err(err).Str("user_id", user.ID).Msg("failed to obtain railway client")
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": "Unable to contact Railway API, please try again later",
+			})
+		}
+		return
+	}
+
 	details := ctx.Query("details") == "1"
 	namesParam := ctx.Query("names")
 	nameSet := map[string]struct{}{}
@@ -111,7 +138,7 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 		}
 	}
 	if details {
-		projects, err := c.Railway.ListProjectsWithDetails(ctx, 200)
+		projects, err := rwClient.ListProjectsWithDetails(ctx, 200)
 		if err != nil {
 			log.Error().Err(err).Msg("railway list projects (details) failed")
 			ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -200,7 +227,7 @@ func (c *EnvironmentController) ListRailwayProjects(ctx *gin.Context) {
 		return
 	}
 
-	projects, err := c.Railway.ListProjects(ctx, 200)
+	projects, err := rwClient.ListProjects(ctx, 200)
 	if err != nil {
 		log.Error().Err(err).Msg("railway list projects failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -250,9 +277,28 @@ func (c *EnvironmentController) GetRailwayProject(ctx *gin.Context) {
 		return
 	}
 
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings",
+			})
+		} else {
+			// Log the actual error server-side for debugging
+			log.Error().Err(err).Str("user_id", user.ID).Msg("failed to obtain railway client")
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": "Unable to contact Railway API, please try again later",
+			})
+		}
+		return
+	}
+
 	details := ctx.Query("details") == "1"
 	if details {
-		p, err := c.Railway.GetProjectWithDetailsByID(ctx, id)
+		p, err := rwClient.GetProjectWithDetailsByID(ctx, id)
 		if err != nil {
 			log.Error().Err(err).Str("id", id).Msg("railway get project (details) failed")
 			ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -329,7 +375,7 @@ func (c *EnvironmentController) GetRailwayProject(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, pd)
 		return
 	}
-	p, err := c.Railway.GetProject(ctx, id)
+	p, err := rwClient.GetProject(ctx, id)
 	if err != nil {
 		log.Error().Err(err).Str("id", id).Msg("railway get project failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
@@ -370,6 +416,23 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 		return
 	}
 
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings before creating projects",
+			})
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": err.Error(),
+			})
+		}
+		return
+	}
+
 	var req ProvisionProjectRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -377,7 +440,7 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 	}
 
 	// Step 1: Create the Railway project
-	res, err := c.Railway.CreateProject(ctx, railway.CreateProjectInput{DefaultEnvironmentName: req.DefaultEnvironmentName, Name: req.Name})
+	res, err := rwClient.CreateProject(ctx, railway.CreateProjectInput{DefaultEnvironmentName: req.DefaultEnvironmentName, Name: req.Name})
 	if err != nil {
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
@@ -397,7 +460,7 @@ func (c *EnvironmentController) ProvisionProject(ctx *gin.Context) {
 			Str("project_id", res.ProjectID).
 			Msg("base environment ID not in mutation response, fetching explicitly")
 
-		pd, err := c.Railway.GetProjectWithDetailsByID(ctx, res.ProjectID)
+		pd, err := rwClient.GetProjectWithDetailsByID(ctx, res.ProjectID)
 		if err != nil {
 			log.Error().Err(err).Str("project_id", res.ProjectID).Msg("failed to fetch project details for default environment")
 			ctx.JSON(http.StatusBadGateway, gin.H{"error": "project created but failed to retrieve default environment: " + err.Error()})
@@ -541,12 +604,29 @@ func (c *EnvironmentController) DeleteRailwayEnvironment(ctx *gin.Context) {
 		return
 	}
 
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings",
+			})
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": err.Error(),
+			})
+		}
+		return
+	}
+
 	// Step 1: Delete from Railway first (fail fast if Railway API fails)
 	log.Info().
 		Str("railway_env_id", railwayEnvID).
 		Str("user_id", user.ID).
 		Msg("deleting railway environment")
-	if err := c.Railway.DestroyEnvironment(ctx, railway.DestroyEnvironmentInput{EnvironmentID: railwayEnvID}); err != nil {
+	if err := rwClient.DestroyEnvironment(ctx, railway.DestroyEnvironmentInput{EnvironmentID: railwayEnvID}); err != nil {
 		log.Error().Err(err).Str("railway_env_id", railwayEnvID).Msg("railway delete environment failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
@@ -639,12 +719,29 @@ func (c *EnvironmentController) DeleteRailwayProject(ctx *gin.Context) {
 		return
 	}
 
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings",
+			})
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": err.Error(),
+			})
+		}
+		return
+	}
+
 	// Step 1: Delete from Railway first (fail fast if Railway API fails)
 	log.Warn().
 		Str("project_id", projectID).
 		Str("user_id", user.ID).
 		Msg("deleting railway project - irreversible operation")
-	if err := c.Railway.DestroyProject(ctx, railway.DestroyProjectInput{ProjectID: projectID}); err != nil {
+	if err := rwClient.DestroyProject(ctx, railway.DestroyProjectInput{ProjectID: projectID}); err != nil {
 		log.Error().Err(err).Str("project_id", projectID).Msg("railway delete project failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
