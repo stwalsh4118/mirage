@@ -3,6 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { DocsSidebar } from "@/components/docs/DocsSidebar";
+import { Breadcrumbs } from "@/components/docs/Breadcrumbs";
 
 export default function DocsLayout({ children }: { children: ReactNode }) {
   return (
@@ -32,17 +34,16 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <div className="max-w-screen-2xl mx-auto px-8">
         <div className="flex gap-8">
-          {/* Sidebar placeholder - will be implemented in task 20-3 */}
+          {/* Sidebar */}
           <aside className="hidden lg:block w-64 flex-shrink-0">
-            <div className="sticky top-24 py-6">
-              <div className="text-sm text-muted-foreground">
-                Navigation coming soon...
-              </div>
+            <div className="sticky top-24 py-6 max-h-[calc(100vh-6rem)] overflow-y-auto">
+              <DocsSidebar />
             </div>
           </aside>
 
           {/* Main Content */}
           <main className="flex-1 py-6 min-w-0">
+            <Breadcrumbs />
             {children}
           </main>
         </div>
