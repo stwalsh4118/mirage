@@ -72,7 +72,7 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 
 	// Public webhook endpoints (no auth)
 	if db != nil && cfg.ClerkWebhookSecret != "" {
-		webhookHandler := webhooks.NewClerkWebhookHandler(db, cfg.ClerkWebhookSecret)
+		webhookHandler := webhooks.NewClerkWebhookHandler(db, cfg.ClerkWebhookSecret, vaultClient)
 		api.POST("/webhooks/clerk", webhookHandler.HandleWebhook)
 	}
 
@@ -103,6 +103,12 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 				lc := &controller.LogsController{DB: db, Railway: rw, AllowedOrigins: cfg.AllowedOrigins}
 				authed.GET("/services/:id/logs", lc.GetServiceLogs)
 				authed.GET("/logs/export", lc.ExportLogs)
+			}
+
+			// Register secrets management controller if Vault is available
+			if vaultClient != nil && rw != nil {
+				secretsCtrl := &controller.SecretsController{Vault: vaultClient, Railway: rw}
+				secretsCtrl.RegisterRoutes(authed)
 			}
 
 			// Initialize Dockerfile scanner for discovery

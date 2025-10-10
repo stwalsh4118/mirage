@@ -1,7 +1,9 @@
 package webhooks
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/stwalsh4118/mirageapi/internal/store"
+	"github.com/stwalsh4118/mirageapi/internal/vault"
 	"gorm.io/gorm"
 )
 
@@ -26,14 +29,16 @@ type ClerkWebhookHandler struct {
 	db            *gorm.DB
 	webhookSecret string
 	idCache       *WebhookIDCache
+	vault         *vault.Client
 }
 
 // NewClerkWebhookHandler creates a new Clerk webhook handler
-func NewClerkWebhookHandler(db *gorm.DB, webhookSecret string) *ClerkWebhookHandler {
+func NewClerkWebhookHandler(db *gorm.DB, webhookSecret string, vaultClient *vault.Client) *ClerkWebhookHandler {
 	return &ClerkWebhookHandler{
 		db:            db,
 		webhookSecret: webhookSecret,
 		idCache:       NewWebhookIDCache(defaultWebhookTTL),
+		vault:         vaultClient,
 	}
 }
 
@@ -200,7 +205,7 @@ func (h *ClerkWebhookHandler) handleUserUpdated(event WebhookEvent) error {
 	return nil
 }
 
-// handleUserDeleted hard-deletes a user from the database
+// handleUserDeleted hard-deletes a user from the database and cleans up their Vault secrets
 func (h *ClerkWebhookHandler) handleUserDeleted(event WebhookEvent) error {
 	clerkUser, err := ExtractUser(event.Data)
 	if err != nil {
@@ -218,6 +223,22 @@ func (h *ClerkWebhookHandler) handleUserDeleted(event WebhookEvent) error {
 		return err
 	}
 
+	// Clean up all user secrets from Vault before deleting from database
+	if h.vault != nil {
+		if err := h.cleanupUserSecrets(user.ID); err != nil {
+			log.Warn().
+				Err(err).
+				Str("user_id", user.ID).
+				Msg("failed to cleanup vault secrets during user deletion - continuing with database deletion")
+			// Don't fail the entire operation - we'll delete the DB record anyway
+			// The secrets will remain in Vault but the user is gone from our system
+		}
+	} else {
+		log.Debug().
+			Str("user_id", user.ID).
+			Msg("vault not configured, skipping secret cleanup")
+	}
+
 	// Hard delete the user record
 	if err := h.db.Delete(&user).Error; err != nil {
 		return err
@@ -227,6 +248,27 @@ func (h *ClerkWebhookHandler) handleUserDeleted(event WebhookEvent) error {
 		Str("user_id", user.ID).
 		Str("clerk_user_id", user.ClerkUserID).
 		Msg("user deleted from webhook")
+
+	return nil
+}
+
+// cleanupUserSecrets deletes all secrets for a user from Vault
+func (h *ClerkWebhookHandler) cleanupUserSecrets(userID string) error {
+	ctx := context.Background()
+
+	// Build the path to the user's secrets directory
+	userPath := fmt.Sprintf("/v1/%s/metadata/users/%s", h.vault.GetMountPath(), userID)
+
+	// Delete the entire user secrets directory recursively
+	// This removes all secrets: railway, github, docker, env_vars, custom, etc.
+	err := h.vault.DeletePathRecursive(ctx, userPath)
+	if err != nil {
+		return fmt.Errorf("failed to delete user secrets path: %w", err)
+	}
+
+	log.Info().
+		Str("user_id", userID).
+		Msg("successfully cleaned up all user secrets from vault")
 
 	return nil
 }
