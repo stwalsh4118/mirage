@@ -24,6 +24,7 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | <a id="16"></a>16 | Platform engineer | Implement core Clerk authentication with JWT verification, user database, and resource ownership. [View Details](./16/prd.md) | Proposed | Frontend Clerk integration; Backend JWT middleware; User table with GORM; Clerk webhooks for user sync; Resource ownership (UserID foreign keys); Protected API routes; User profile endpoints |
 | <a id="17"></a>17 | Platform engineer | Implement HashiCorp Vault for secure secret management of Railway API tokens and other user credentials. [View Details](./17/prd.md) | Proposed | Self-hosted Vault on Railway; Per-user secret storage; Railway/GitHub/Docker token management; Environment-specific secrets; Secret versioning and rotation; Comprehensive secret management UI |
 | <a id="18"></a>18 | Platform admin | Add advanced authentication features including RBAC, audit logging, user preferences, and admin dashboard. [View Details](./18/prd.md) | Proposed | Role-based access control (admin/user); Audit logging of all actions; User preferences; Admin dashboard; User management UI; System statistics |
+| <a id="19"></a>19 | Developer | Import and manage external Railway environments that existed before connecting to Mirage. [View Details](./19/prd.md) | Proposed | Visual distinction between managed/unmanaged environments; Environment-level import with validation; Mass import capability; Full CRUD operations post-import; Metadata capture (env vars, services, configs); Conflict detection and resolution |
 
 ## History
 
@@ -59,3 +60,4 @@ The backlog document contains all PBIs for the project, ordered by priority.
 | 20251007-000000 | 17 | create_pbi | Created PBI 17 (HashiCorp Vault Secret Management) | ai-agent |
 | 20251007-010000 | 16 | significant_update | Simplified to core auth + resource ownership; moved advanced features to PBI 18 | ai-agent |
 | 20251007-010000 | 18 | create_pbi | Created PBI 18 (Advanced Auth Features: RBAC, Audit, Admin) | ai-agent |
+| 20251010-000000 | 19 | create_pbi | Created PBI 19 (Import External Railway Environments) | ai-agent |
