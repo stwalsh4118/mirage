@@ -14,9 +14,8 @@ import { VariableSourceBadge } from "../VariableSourceBadge";
 
 export function StepConfig() {
   const {
+    projectSelectionMode,
     environmentName,
-    templateKind,
-    ttlHours,
     environmentVariables,
     serviceEnvironmentVariables,
     discoveredServices,
@@ -167,54 +166,25 @@ export function StepConfig() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="envName">Environment name</Label>
-          <Input
-            id="envName"
-            className="bg-card"
-            placeholder="staging"
-            value={environmentName}
-            onChange={(e) => setField("environmentName", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2 md:col-span-2">
-          <Label htmlFor="template">Template</Label>
-          <Select value={templateKind} onValueChange={(v) => setField("templateKind", v as "dev" | "prod")}> 
-            <SelectTrigger id="template" className="bg-card w-full pr-6 gap-1">
-              <SelectValue placeholder="Choose template" />
-            </SelectTrigger>
-            <SelectContent className="bg-card">
-              <SelectItem value="dev">dev — minimal resources, fast iteration</SelectItem>
-              <SelectItem value="prod">prod — higher resources, durability</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="ttl">TTL (hours, optional)</Label>
-          <Input
-            id="ttl"
-            className="bg-card"
-            inputMode="numeric"
-            placeholder="24"
-            value={ttlHours ?? ""}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === "") setField("ttlHours", null);
-              else {
-                const num = Number(v.replace(/[^0-9]/g, ""));
-                setField("ttlHours", Number.isFinite(num) ? num : null);
-              }
-            }}
-          />
-          <p className="text-xs text-muted-foreground">Leave blank for no auto-destroy; bounds validated on submit.</p>
-        </div>
-      </div>
-
-      <Separator />
+      {/* Only show environment name when adding to existing project */}
+      {projectSelectionMode === "existing" && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="envName">Environment name</Label>
+            <Input
+              id="envName"
+              className="bg-card"
+              placeholder="staging"
+              value={environmentName}
+              onChange={(e) => setField("environmentName", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Name for the new environment in the selected project
+            </p>
+          </div>
+          <Separator />
+        </>
+      )}
 
       <div className="space-y-3">
         <Label className="text-base">Environment Variables</Label>
