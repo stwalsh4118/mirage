@@ -3,11 +3,20 @@ import { KpiStrip } from "@/components/dashboard/KpiStrip";
 import { ControlsBar } from "@/components/dashboard/ControlsBar";
 import { ProjectsAccordion } from "@/components/dashboard/ProjectsAccordion";
 import { ProjectsTable } from "@/components/dashboard/ProjectsTable";
+import { RailwayTokenOnboarding } from "@/components/dashboard/RailwayTokenOnboarding";
 import { useDashboardStore } from "@/store/dashboard";
+import { useRailwayTokenStatus } from "@/hooks/useRailwayToken";
 import { useRailwayProjectsDetails } from "@/hooks/useRailway";
 
 export default function DashboardPage() {
-  const { data: projects = [] } = useRailwayProjectsDetails();
+  const { data: tokenStatus } = useRailwayTokenStatus();
+  const { view } = useDashboardStore();
+  
+  // Only fetch projects if Railway token is configured
+  const { data: projects = [] } = useRailwayProjectsDetails(undefined, {
+    enabled: tokenStatus?.configured === true,
+  });
+  
   const totalProjects = projects.length;
   const totalServices = projects.reduce((sum, p) => sum + (p.services?.length ?? 0), 0);
   const totalEnvironments = projects.reduce((sum, p) => sum + (p.environments?.length ?? 0), 0);
@@ -17,10 +26,10 @@ export default function DashboardPage() {
     { title: "Environments", value: totalEnvironments },
   ];
 
-  const { view } = useDashboardStore();
   return (
     <div className="space-y-6">
       <main className="max-w-screen-2xl mx-auto px-8 space-y-6">
+        <RailwayTokenOnboarding />
         <KpiStrip items={kpis} />
         <ControlsBar />
         {view === "grid" ? <ProjectsAccordion /> : <ProjectsTable />}

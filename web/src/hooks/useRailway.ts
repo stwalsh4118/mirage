@@ -46,7 +46,7 @@ export function useRailwayProjects(names: string[]) {
   });
 }
 
-export function useRailwayProjectsDetails(names?: string[]) {
+export function useRailwayProjectsDetails(names?: string[], options?: { enabled?: boolean }) {
   const { fetch } = useAuthenticatedFetch();
   
   return useQuery<RailwayProjectDetails[]>({
@@ -63,6 +63,7 @@ export function useRailwayProjectsDetails(names?: string[]) {
     staleTime: RAILWAY_POLL_INTERVAL_MS,
     refetchInterval: RAILWAY_POLL_INTERVAL_MS,
     refetchOnWindowFocus: false,
+    enabled: options?.enabled ?? true,
   });
 }
 

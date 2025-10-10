@@ -2,6 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRailwayProjectsDetails } from "@/hooks/useRailway";
+import { useRailwayTokenStatus } from "@/hooks/useRailwayToken";
 import { useDashboardStore } from "@/store/dashboard";
 import type { RailwayProjectDetails } from "@/lib/api/railway";
 import { useEffect, useRef, useState } from "react";
@@ -33,16 +34,25 @@ function LoadingList() {
 
 export function ProjectsAccordion() {
   const { data, isLoading, isError, refetch } = useRailwayProjectsDetails();
+  const { data: tokenStatus } = useRailwayTokenStatus();
   const { query, sortBy } = useDashboardStore();
 
   if (isLoading) return <LoadingList />;
-  if (isError)
+  
+  // Don't show error if no token is configured - onboarding banner will guide them
+  if (isError && tokenStatus?.configured) {
     return (
       <div className="glass grain p-6 rounded-lg">
         <div className="text-foreground/80">Failed to load projects.</div>
         <button className="mt-3 underline" onClick={() => void refetch()}>Retry</button>
       </div>
     );
+  }
+  
+  // If no token configured, don't show anything (onboarding banner handles it)
+  if (!tokenStatus?.configured) {
+    return null;
+  }
 
   let projects = (data ?? []).slice();
   if (query) {
@@ -67,9 +77,11 @@ export function ProjectsAccordion() {
 
   if (!projects.length)
     return (
-      <div className="glass grain p-10 rounded-lg text-center">
-        <div className="text-lg font-medium mb-2">No projects found</div>
-        <div className="text-muted-foreground">Ensure Railway integration is configured.</div>
+      <div className="glass grain p-10 rounded-lg text-center space-y-3">
+        <div className="text-lg font-medium mb-2">No Railway projects found</div>
+        <div className="text-muted-foreground max-w-md mx-auto">
+          {query ? "No projects match your search. Try a different query." : "Your Railway account doesn't have any projects yet. Create one in Railway to get started."}
+        </div>
       </div>
     );
 
