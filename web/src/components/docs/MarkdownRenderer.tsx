@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -74,7 +75,7 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
 
       return (
         <a
-          href={href}
+          href={href || "#"}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-primary underline underline-offset-4 hover:text-primary/80"
@@ -103,9 +104,11 @@ export function MarkdownRenderer({ content, className = "" }: MarkdownRendererPr
 
     // Pre blocks (code blocks with language)
     pre: ({ children, ...props }) => {
-      // Extract the code element and its props
-      const codeElement = children as React.ReactElement<{ className?: string }>;
-      const className = codeElement?.props?.className || '';
+      // Extract the code element and its props with type guard
+      const className = 
+        React.isValidElement(children) && typeof children.props === 'object'
+          ? ((children.props as { className?: string }).className || '')
+          : '';
       const match = /language-(\w+)/.exec(className);
       const language = match ? match[1] : 'text';
       

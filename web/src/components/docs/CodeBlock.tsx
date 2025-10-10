@@ -17,9 +17,14 @@ export function CodeBlock({ children, className, inline }: CodeBlockProps) {
   const language = className?.replace(/language-/, "").replace(/hljs\s*/gi, "").trim() || "text";
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(children);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await navigator.clipboard.writeText(children);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+      // Optionally show a toast notification
+    }
   };
 
   // For inline code, render a simple span

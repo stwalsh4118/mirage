@@ -3,15 +3,18 @@ import { persist } from "zustand/middleware";
 
 type DocsState = {
   openSections: string[];
+  initialized: boolean;
   toggleSection: (sectionTitle: string) => void;
   isOpen: (sectionTitle: string) => boolean;
   setOpenSections: (sections: string[]) => void;
+  setInitialized: (initialized: boolean) => void;
 };
 
 export const useDocsStore = create<DocsState>()(
   persist(
     (set, get) => ({
       openSections: [],
+      initialized: false,
       
       toggleSection: (sectionTitle) =>
         set((state) => ({
@@ -22,7 +25,9 @@ export const useDocsStore = create<DocsState>()(
       
       isOpen: (sectionTitle) => get().openSections.includes(sectionTitle),
       
-      setOpenSections: (sections) => set({ openSections: sections }),
+      setOpenSections: (sections) => set({ openSections: sections, initialized: true }),
+      
+      setInitialized: (initialized) => set({ initialized }),
     }),
     { name: "mirage-docs-store" }
   )

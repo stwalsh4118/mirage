@@ -10,11 +10,11 @@ import { cn } from "@/lib/utils";
 
 export function DocsSidebar() {
   const pathname = usePathname();
-  const { openSections, toggleSection, isOpen, setOpenSections } = useDocsStore();
+  const { toggleSection, isOpen, setOpenSections, initialized } = useDocsStore();
 
-  // Initialize with active section if store is empty (first visit)
+  // Initialize with active section on first visit only
   useEffect(() => {
-    if (openSections.length === 0) {
+    if (!initialized) {
       const activeSection = docsNavigation.find((section) =>
         section.pages.some((page) => pathname === page.path)
       );
@@ -22,7 +22,7 @@ export function DocsSidebar() {
         setOpenSections([activeSection.title]);
       }
     }
-  }, [pathname, openSections.length, setOpenSections]);
+  }, [pathname, initialized, setOpenSections]);
 
   return (
     <nav className="space-y-2">
