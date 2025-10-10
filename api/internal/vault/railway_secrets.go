@@ -190,13 +190,14 @@ func (c *Client) ValidateRailwayToken(ctx context.Context, userID string) error 
 }
 
 // isNotFoundError checks if an error is a 404 Not Found error from Vault
+// or indicates that a resource doesn't exist (like a mount point)
 func isNotFoundError(err error) bool {
 	if err == nil {
 		return false
 	}
-	// Check if error message contains "404" or "not found"
+	// Check if error message contains "404", "not found", or indicates missing mount
 	errStr := err.Error()
-	return containsAny(errStr, "404", "not found", "No value found")
+	return containsAny(errStr, "404", "not found", "No value found", "No secret engine mount")
 }
 
 // containsAny checks if a string contains any of the given substrings
