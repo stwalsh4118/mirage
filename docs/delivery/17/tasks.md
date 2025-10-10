@@ -21,8 +21,8 @@ This document lists all tasks associated with PBI 17.
 | 17-11 | [Implement Docker credentials management in SecretStore](./17-11.md) | Proposed | Implement store, get, list, and delete methods for Docker registry credentials |
 | 17-12 | [Implement environment-specific secrets in SecretStore](./17-12.md) | Proposed | Implement store, get, get-all, delete, and bulk operations for environment secrets |
 | 17-13 | [Implement generic secret management with versioning](./17-13.md) | Proposed | Implement generic secret CRUD, version management, rollback, and metadata operations |
-| 17-14 | [Refactor Railway client to support per-user tokens](./17-14.md) | Proposed | Add GetUserRailwayClient helper function and factory pattern for user-specific clients |
-| 17-15 | [Update controllers to use user-specific Railway clients](./17-15.md) | Proposed | Update Environment and Services controllers to fetch user tokens from Vault |
+| 17-14 | [Refactor Railway client to support per-user tokens](./17-14.md) | Done | Add GetUserRailwayClient helper function and factory pattern for user-specific clients |
+| 17-15 | [Update controllers to use user-specific Railway clients](./17-15.md) | Done | Update Environment and Services controllers to fetch user tokens from Vault |
 | 17-16 | [Implement Railway token API endpoints](./17-16.md) | Proposed | Create POST/GET/DELETE endpoints for Railway token storage, validation, and rotation |
 | 17-17 | [Implement GitHub token API endpoints](./17-17.md) | Proposed | Create POST/GET/DELETE endpoints for GitHub PAT storage and validation |
 | 17-18 | [Implement Docker credentials API endpoints](./17-18.md) | Proposed | Create POST/GET/DELETE endpoints for Docker registry credentials management |

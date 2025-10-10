@@ -13,6 +13,7 @@ import (
 	"github.com/stwalsh4118/mirageapi/internal/auth"
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/store"
+	"github.com/stwalsh4118/mirageapi/internal/vault"
 	"gorm.io/gorm"
 )
 
@@ -26,6 +27,7 @@ type RailwayServiceClient interface {
 type ServicesController struct {
 	Railway RailwayServiceClient
 	DB      *gorm.DB
+	Vault   *vault.Client
 }
 
 // RegisterRoutes registers service-related routes under the provided router group.
@@ -83,6 +85,23 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 	user, err := auth.GetCurrentUser(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings before provisioning services",
+			})
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": err.Error(),
+			})
+		}
 		return
 	}
 
@@ -191,7 +210,7 @@ func (c *ServicesController) ProvisionServices(ctx *gin.Context) {
 				Msg("creating service with merged variables")
 		}
 
-		out, err := c.Railway.CreateService(ctx, input)
+		out, err := rwClient.CreateService(ctx, input)
 		if err != nil {
 			ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error(), "service": s.Name, "partial": ids})
 			return
@@ -492,12 +511,29 @@ func (c *ServicesController) DeleteRailwayService(ctx *gin.Context) {
 		return
 	}
 
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings",
+			})
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": err.Error(),
+			})
+		}
+		return
+	}
+
 	// Step 1: Delete from Railway first (fail fast if Railway API fails)
 	log.Info().
 		Str("railway_service_id", railwayServiceID).
 		Str("user_id", user.ID).
 		Msg("deleting railway service")
-	if err := c.Railway.DestroyService(ctx, railway.DestroyServiceInput{ServiceID: railwayServiceID}); err != nil {
+	if err := rwClient.DestroyService(ctx, railway.DestroyServiceInput{ServiceID: railwayServiceID}); err != nil {
 		log.Error().Err(err).Str("railway_service_id", railwayServiceID).Msg("railway delete service failed")
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return

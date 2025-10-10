@@ -14,6 +14,7 @@ import (
 	"github.com/stwalsh4118/mirageapi/internal/railway"
 	"github.com/stwalsh4118/mirageapi/internal/status"
 	"github.com/stwalsh4118/mirageapi/internal/store"
+	"github.com/stwalsh4118/mirageapi/internal/vault"
 	"gorm.io/gorm"
 )
 
@@ -44,6 +45,7 @@ type RailwayEnvironmentClient interface {
 type EnvironmentController struct {
 	DB      *gorm.DB
 	Railway RailwayEnvironmentClient
+	Vault   *vault.Client
 }
 
 func (c *EnvironmentController) RegisterRoutes(r *gin.RouterGroup) {
@@ -91,12 +93,29 @@ func (c *EnvironmentController) ProvisionEnvironment(ctx *gin.Context) {
 		return
 	}
 
+	// Get user-specific Railway client
+	rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
+	if err != nil {
+		if err == railway.ErrNoRailwayToken {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Railway token not configured",
+				"message": "Please configure your Railway API token in settings before creating environments",
+			})
+		} else {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Failed to get Railway client",
+				"message": err.Error(),
+			})
+		}
+		return
+	}
+
 	var req ProvisionEnvironmentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	res, err := c.Railway.CreateEnvironment(ctx, railway.CreateEnvironmentInput{ProjectID: req.ProjectID, Name: req.Name})
+	res, err := rwClient.CreateEnvironment(ctx, railway.CreateEnvironmentInput{ProjectID: req.ProjectID, Name: req.Name})
 	if err != nil {
 		ctx.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
@@ -466,32 +485,42 @@ func (c *EnvironmentController) GetEnvironmentSnapshot(ctx *gin.Context) {
 		Int("service_count", len(env.Services)).
 		Msg("fetching environment snapshot")
 
-	// Fetch environment and service variables from Railway API
+	// Fetch environment and service variables from Railway API using user-specific client
 	envVars := make(map[string]string)
 	serviceVars := make([]ServiceVariablesSnapshot, 0)
 
 	if c.Railway != nil && env.RailwayEnvironmentID != "" && env.RailwayProjectID != "" {
-		result, err := c.Railway.GetAllEnvironmentAndServiceVariables(ctx, railway.GetAllEnvironmentAndServiceVariablesInput{
-			ProjectID:     env.RailwayProjectID,
-			EnvironmentID: env.RailwayEnvironmentID,
-		})
+		// Get user-specific Railway client for variable fetch
+		rwClient, err := railway.GetRailwayClientForUser(ctx, user.ID, c.Vault, c.Railway)
 		if err != nil {
 			log.Warn().
 				Err(err).
-				Str("railway_env_id", env.RailwayEnvironmentID).
-				Str("railway_project_id", env.RailwayProjectID).
-				Msg("failed to fetch variables for snapshot, returning empty variables")
-			// Don't fail - just return empty vars
+				Str("user_id", user.ID).
+				Msg("failed to get user railway client for snapshot, returning empty variables")
+			// Continue with empty vars rather than failing the whole snapshot
 		} else {
-			envVars = result.EnvironmentVariables
+			result, err := rwClient.GetAllEnvironmentAndServiceVariables(ctx, railway.GetAllEnvironmentAndServiceVariablesInput{
+				ProjectID:     env.RailwayProjectID,
+				EnvironmentID: env.RailwayEnvironmentID,
+			})
+			if err != nil {
+				log.Warn().
+					Err(err).
+					Str("railway_env_id", env.RailwayEnvironmentID).
+					Str("railway_project_id", env.RailwayProjectID).
+					Msg("failed to fetch variables for snapshot, returning empty variables")
+				// Don't fail - just return empty vars
+			} else {
+				envVars = result.EnvironmentVariables
 
-			// Convert Railway service variables to snapshot format
-			for _, svcVar := range result.ServiceVariables {
-				serviceVars = append(serviceVars, ServiceVariablesSnapshot{
-					ServiceID:   svcVar.ServiceID,
-					ServiceName: svcVar.ServiceName,
-					Variables:   svcVar.Variables,
-				})
+				// Convert Railway service variables to snapshot format
+				for _, svcVar := range result.ServiceVariables {
+					serviceVars = append(serviceVars, ServiceVariablesSnapshot{
+						ServiceID:   svcVar.ServiceID,
+						ServiceName: svcVar.ServiceName,
+						Variables:   svcVar.Variables,
+					})
+				}
 			}
 		}
 	}

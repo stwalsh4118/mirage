@@ -94,9 +94,9 @@ func NewHTTPServer(cfg config.AppConfig, deps ...any) *gin.Engine {
 		authed.Use(auth.RequireAuth(db))
 		{
 			if rw != nil {
-				ec := &controller.EnvironmentController{DB: db, Railway: rw}
+				ec := &controller.EnvironmentController{DB: db, Railway: rw, Vault: vaultClient}
 				ec.RegisterRoutes(authed)
-				sc := &controller.ServicesController{Railway: rw, DB: db}
+				sc := &controller.ServicesController{Railway: rw, DB: db, Vault: vaultClient}
 				sc.RegisterRoutes(authed)
 
 				// Register non-WebSocket log routes with regular auth
