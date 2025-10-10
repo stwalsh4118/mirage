@@ -41,3 +41,37 @@ export interface RotateRailwayTokenResponse {
   message: string;
 }
 
+// GitHub Token Types
+export interface GitHubTokenStatusResponse {
+  configured: boolean;
+  username?: string;
+  scopes?: string[];
+  last_validated?: string;
+  message?: string;
+}
+
+export interface StoreGitHubTokenRequest {
+  token: string;
+}
+
+export interface StoreGitHubTokenResponse {
+  success: boolean;
+  validated: boolean;
+  stored_at: string;
+  username: string;
+  scopes: string[];
+  message: string;
+}
+
+export interface ValidateGitHubTokenResponse {
+  valid: boolean;
+  username?: string;
+  scopes?: string[];
+  message: string;
+}
+
+export interface DeleteGitHubTokenResponse {
+  success: boolean;
+  message: string;
+}
+

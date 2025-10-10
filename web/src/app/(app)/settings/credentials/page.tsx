@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Key, Github, Package, FolderLock } from "lucide-react";
 import { RailwayTokenTab } from "@/components/credentials/RailwayTokenTab";
+import { GitHubTokenTab } from "@/components/credentials/GitHubTokenTab";
 
 export default function CredentialsPage() {
   return (
@@ -49,19 +50,7 @@ export default function CredentialsPage() {
 
           {/* GitHub Token Tab */}
           <TabsContent value="github" className="mt-6 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>GitHub Personal Access Token</CardTitle>
-                <CardDescription>
-                  Add your GitHub PAT to access private repositories for service discovery
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center py-12 text-muted-foreground">
-                  GitHub token management will be implemented here
-                </div>
-              </CardContent>
-            </Card>
+            <GitHubTokenTab />
           </TabsContent>
 
           {/* Docker Registries Tab */}
