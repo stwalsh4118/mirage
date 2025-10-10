@@ -17,20 +17,20 @@ This document lists all tasks associated with PBI 17.
 | 17-7 | [Implement secret caching layer with TTL](./17-7.md) | Proposed | Create in-memory cache for secrets with 5-minute TTL and invalidation on updates |
 | 17-8 | [Define SecretStore interface and domain types](./17-8.md) | Done | Define SecretStore interface, Secret, SecretMetadata, and DockerCredentials types |
 | 17-9 | [Implement Railway token management in SecretStore](./17-9.md) | Done | Implement store, get, delete, rotate, and validate methods for Railway tokens |
-| 17-10 | [Implement GitHub token management in SecretStore](./17-10.md) | Proposed | Implement store, get, delete, and validate methods for GitHub PATs |
+| 17-10 | [Implement GitHub token management in SecretStore](./17-10.md) | Done | Implement store, get, delete, and validate methods for GitHub PATs |
 | 17-11 | [Implement Docker credentials management in SecretStore](./17-11.md) | Proposed | Implement store, get, list, and delete methods for Docker registry credentials |
 | 17-12 | [Implement environment-specific secrets in SecretStore](./17-12.md) | Proposed | Implement store, get, get-all, delete, and bulk operations for environment secrets |
 | 17-13 | [Implement generic secret management with versioning](./17-13.md) | Proposed | Implement generic secret CRUD, version management, rollback, and metadata operations |
 | 17-14 | [Refactor Railway client to support per-user tokens](./17-14.md) | Done | Add GetUserRailwayClient helper function and factory pattern for user-specific clients |
 | 17-15 | [Update controllers to use user-specific Railway clients](./17-15.md) | Done | Update Environment and Services controllers to fetch user tokens from Vault |
 | 17-16 | [Implement Railway token API endpoints](./17-16.md) | Done | Create POST/GET/DELETE endpoints for Railway token storage, validation, and rotation |
-| 17-17 | [Implement GitHub token API endpoints](./17-17.md) | Proposed | Create POST/GET/DELETE endpoints for GitHub PAT storage and validation |
+| 17-17 | [Implement GitHub token API endpoints](./17-17.md) | Done | Create POST/GET/DELETE endpoints for GitHub PAT storage and validation |
 | 17-18 | [Implement Docker credentials API endpoints](./17-18.md) | Proposed | Create POST/GET/DELETE endpoints for Docker registry credentials management |
 | 17-19 | [Implement environment secrets API endpoints](./17-19.md) | Proposed | Create POST/GET/DELETE endpoints for environment-specific secrets with bulk operations |
 | 17-20 | [Implement generic secrets and versioning API endpoints](./17-20.md) | Proposed | Create endpoints for generic secrets, version history, rollback, and audit log |
 | 17-21 | [Create credentials settings page layout and structure](./17-21.md) | Done | Build main credentials page with tabbed interface for all secret types |
 | 17-22 | [Implement Railway token UI tab with status and actions](./17-22.md) | Done | Create Railway token tab with status card, add/update/test/remove functionality |
-| 17-23 | [Implement GitHub and Docker registry UI tabs](./17-23.md) | Proposed | Build GitHub token tab and Docker registries management tab with CRUD operations |
+| 17-23 | [Implement GitHub and Docker registry UI tabs](./17-23.md) | Done | Build GitHub token tab and Docker registries management tab with CRUD operations |
 | 17-24 | [Implement custom secrets UI with version history](./17-24.md) | Proposed | Create custom secrets tab with searchable table, version history modal, and rollback |
 | 17-25 | [Implement environment secrets UI in environment detail page](./17-25.md) | Proposed | Add secrets tab to environment page with table, bulk import/export functionality |
 | 17-26 | [Implement feature flag and environment variable fallback](./17-26.md) | Proposed | Add VAULT_ENABLED flag, fallback to RAILWAY_API_TOKEN, and graceful degradation |
