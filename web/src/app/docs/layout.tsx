@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { DocsSidebar } from "@/components/docs/DocsSidebar";
 import { Breadcrumbs } from "@/components/docs/Breadcrumbs";
+import { WipBanner } from "@/components/docs/WipBanner";
 
 export default function DocsLayout({ children }: { children: ReactNode }) {
   return (
@@ -44,6 +45,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
           {/* Main Content */}
           <main className="flex-1 py-6 min-w-0">
             <Breadcrumbs />
+            <WipBanner />
             {children}
           </main>
         </div>
