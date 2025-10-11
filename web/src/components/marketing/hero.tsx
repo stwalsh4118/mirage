@@ -62,7 +62,9 @@ export function Hero() {
                     <Button size="lg" className="font-semibold text-lg px-8 py-6 bg-gradient-to-r from-accent to-accent/80 hover:from-accent/90 hover:to-accent/70 shadow-lg">Go to Dashboard</Button>
                   </Link>
                 </SignedIn>
-                <Button size="lg" variant="outline" className="font-medium text-lg px-8 py-6 bg-card/60 backdrop-blur-sm border-border/50 hover:bg-card/80">Explore Docs</Button>
+                <Link href="/docs">
+                  <Button size="lg" variant="outline" className="font-medium text-lg px-8 py-6 bg-card/60 backdrop-blur-sm border-border/50 hover:bg-card/80">Explore Docs</Button>
+                </Link>
               </div>
             </div>
             <div className="absolute -bottom-6 -right-6 bg-card/95 backdrop-blur-xl border border-border/60 rounded-2xl p-6 shadow-xl transform rotate-2 hover:rotate-0 transition-all duration-300">

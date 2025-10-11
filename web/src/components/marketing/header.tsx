@@ -24,7 +24,7 @@ export function Header() {
           <span className="text-2xl font-semibold tracking-tight leading-none text-foreground">Mirage</span>
         </div>
         <nav className="hidden md:flex items-center space-x-6">
-          <a href="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</a>
+          <Link href="/docs" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Docs</Link>
           <a href="#" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">GitHub</a>
           <SignedOut>
             <Link href="/sign-in" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Sign in</Link>
