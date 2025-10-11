@@ -25,7 +25,7 @@ export function RailwayTokenOnboarding() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Welcome to Mirage! 🎉</h3>
               <p className="text-muted-foreground leading-relaxed">
-                To get started managing your Railway infrastructure, you&apos;ll need to connect your Railway API token.
+                To get started managing your Railway infrastructure, you&apos;ll need to connect your Railway workspace token.
                 This allows Mirage to securely access and manage your Railway projects.
               </p>
             </div>
@@ -36,7 +36,7 @@ export function RailwayTokenOnboarding() {
                 <div className="text-sm text-muted-foreground">
                   <p className="font-medium mb-1">Quick setup (2 steps):</p>
                   <ol className="list-decimal list-inside space-y-1">
-                    <li>Get your Railway API token from your account settings</li>
+                    <li>Create a <strong>Workspace token</strong> (not Project/Personal) in Railway account settings</li>
                     <li>Add it to Mirage in the Credentials page</li>
                   </ol>
                 </div>
@@ -47,7 +47,7 @@ export function RailwayTokenOnboarding() {
               <Link href="/settings/credentials">
                 <Button size="lg" className="w-full sm:w-auto">
                   <Key className="mr-2 h-4 w-4" />
-                  Add Railway Token
+                  Add Workspace Token
                 </Button>
               </Link>
               <a
@@ -57,7 +57,7 @@ export function RailwayTokenOnboarding() {
               >
                 <Button size="lg" variant="outline" className="w-full sm:w-auto bg-transparent">
                   <ExternalLink className="mr-2 h-4 w-4" />
-                  Get Token from Railway
+                  Create Workspace Token
                 </Button>
               </a>
             </div>

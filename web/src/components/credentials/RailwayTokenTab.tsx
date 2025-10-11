@@ -156,9 +156,9 @@ export function RailwayTokenTab() {
         <CardHeader>
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>Railway API Token</CardTitle>
+              <CardTitle>Railway Workspace Token</CardTitle>
               <CardDescription>
-                Configure your Railway API token to enable environment provisioning and management
+                Configure your Railway workspace token to enable environment provisioning and management
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -176,11 +176,11 @@ export function RailwayTokenTab() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
                 <div className="space-y-2 flex-1">
-                  <p className="text-sm font-medium">How to get your Railway API token:</p>
+                  <p className="text-sm font-medium">How to get your Railway workspace token:</p>
                   <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>Go to Railway Account Settings</li>
                     <li>Navigate to the &ldquo;Tokens&rdquo; section</li>
-                    <li>Create a new token or copy an existing one</li>
+                    <li>Create a new token and select <strong>&ldquo;Workspace&rdquo;</strong> as the token type</li>
                     <li>Paste it below to get started</li>
                   </ol>
                   <a
@@ -219,22 +219,22 @@ export function RailwayTokenTab() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>
-                    {status?.configured ? "Update Railway Token" : "Add Railway Token"}
+                    {status?.configured ? "Update Railway Workspace Token" : "Add Railway Workspace Token"}
                   </DialogTitle>
                   <DialogDescription>
-                    Enter your Railway API token. It will be validated before saving.
+                    Enter your Railway workspace token. It will be validated before saving.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="token">Railway API Token</Label>
+                    <Label htmlFor="token">Railway Workspace Token</Label>
                     <div className="relative">
                       <Input
                         id="token"
                         type={showToken ? "text" : "password"}
                         value={token}
                         onChange={(e) => setToken(e.target.value)}
-                        placeholder="Enter your Railway API token"
+                        placeholder="Enter your Railway workspace token"
                         className="pr-10"
                       />
                       <Button
@@ -308,14 +308,14 @@ export function RailwayTokenTab() {
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
-                      <Label htmlFor="new-token">New Railway API Token</Label>
+                      <Label htmlFor="new-token">New Railway Workspace Token</Label>
                       <div className="relative">
                         <Input
                           id="new-token"
                           type={showNewToken ? "text" : "password"}
                           value={newToken}
                           onChange={(e) => setNewToken(e.target.value)}
-                          placeholder="Enter your new Railway API token"
+                          placeholder="Enter your new Railway workspace token"
                           className="pr-10"
                         />
                         <Button
@@ -369,7 +369,7 @@ export function RailwayTokenTab() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Remove Railway Token?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will remove your Railway API token from secure storage. You will need to
+                      This will remove your Railway workspace token from secure storage. You will need to
                       add a new token to continue managing Railway environments.
                       <br />
                       <br />
