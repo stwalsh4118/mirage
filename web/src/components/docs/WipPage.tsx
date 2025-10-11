@@ -15,7 +15,7 @@ export function WipPage({ title, backLink = "/docs", backLabel = "Back to Docume
         <FileText className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
         <h1 className="text-3xl font-bold mb-4">{title}</h1>
         <p className="text-lg text-muted-foreground mb-6">
-          This page is coming soon. We're working on this documentation section.
+          This page is coming soon. We&apos;re working on this documentation section.
         </p>
         <p className="text-sm text-muted-foreground mb-8">
           In the meantime, check out the{" "}
